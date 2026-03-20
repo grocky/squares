@@ -1,0 +1,13 @@
+{{if .Games}}
+{{range .Games}}
+<div class="game {{.Status}}">
+    <span class="teams">{{.AwayTeam}} @ {{.HomeTeam}}</span>
+    {{if ne .Status "scheduled"}}
+    <span class="score">{{.LoserScore}} - {{.WinnerScore}}</span>
+    {{end}}
+    <span class="status-badge">{{.Status}}</span>
+</div>
+{{end}}
+{{else}}
+<p class="muted">No games synced yet. Click "Sync ESPN Scores" to fetch games.</p>
+{{end}}

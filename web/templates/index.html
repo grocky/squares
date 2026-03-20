@@ -51,46 +51,64 @@
     </button>
 </div>
 
+<div class="round-tabs" id="round-tabs">
+    <button class="round-tab{{if eq .RoundFilter 0}} active{{end}}"
+            hx-get="/pools/{{.Pool.ID}}/grid?round=0{{if .Editing}}&editing=true{{end}}"
+            hx-target="#grid" hx-swap="innerHTML"
+            hx-on::after-request="selectRoundTab(this, 0)">All</button>
+    {{range .RoundConfigs}}
+    <button class="round-tab{{if eq $.RoundFilter .RoundNum}} active{{end}}"
+            hx-get="/pools/{{$.Pool.ID}}/grid?round={{.RoundNum}}{{if $.Editing}}&editing=true{{end}}"
+            hx-target="#grid" hx-swap="innerHTML"
+            hx-on::after-request="selectRoundTab(this, {{.RoundNum}})">{{.Name}}</button>
+    {{end}}
+</div>
+
 <div class="dashboard">
     <div class="grid-section">
         <h2>Squares Grid</h2>
-        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid{{if .Editing}}?editing=true{{end}}" hx-trigger="load" hx-swap="innerHTML">
+        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}{{if .Editing}}&editing=true{{end}}" hx-trigger="load" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
 
     <div class="sidebar">
         <h2>Leaderboard</h2>
-        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard" hx-trigger="load" hx-swap="innerHTML">
+        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard?round={{.RoundFilter}}" hx-trigger="load" hx-swap="innerHTML">
             Loading leaderboard...
         </div>
 
         <h2>Games</h2>
-        <div class="games-list">
-            {{if .Games}}
-            {{range .Games}}
-            <div class="game {{.Status}}">
-                <span class="teams">{{.AwayTeam}} @ {{.HomeTeam}}</span>
-                {{if ne .Status "scheduled"}}
-                <span class="score">{{.LoserScore}} - {{.WinnerScore}}</span>
-                {{end}}
-                <span class="status-badge">{{.Status}}</span>
-            </div>
-            {{end}}
-            {{else}}
-            <p class="muted">No games synced yet. Click "Sync ESPN Scores" to fetch games.</p>
-            {{end}}
+        <div id="games" class="games-list" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load" hx-swap="innerHTML">
+            Loading games...
         </div>
     </div>
 </div>
 </div>
 
 <script>
+var currentRound = {{.RoundFilter}};
+
 function toggleEditMode() {
     var page = document.getElementById('page');
     var editing = page.dataset.editing === 'true';
     var poolId = page.dataset.poolId;
-    window.location.href = '/pools/' + poolId + (editing ? '' : '?editing=true');
+    var params = [];
+    if (!editing) params.push('editing=true');
+    if (currentRound > 0) params.push('round=' + currentRound);
+    window.location.href = '/pools/' + poolId + (params.length ? '?' + params.join('&') : '');
+}
+
+function selectRoundTab(btn, roundNum) {
+    currentRound = roundNum;
+    var tabs = document.querySelectorAll('.round-tab');
+    tabs.forEach(function(t) { t.classList.remove('active'); });
+    btn.classList.add('active');
+
+    var poolId = document.getElementById('page').dataset.poolId;
+
+    htmx.ajax('GET', '/pools/' + poolId + '/leaderboard?round=' + roundNum, {target: '#leaderboard', swap: 'innerHTML'});
+    htmx.ajax('GET', '/pools/' + poolId + '/games?round=' + roundNum, {target: '#games', swap: 'innerHTML'});
 }
 
 function updatePool(field, value) {
