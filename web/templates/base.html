@@ -5,11 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Pool.Name}} - Squares</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <div class="container">
+<body class="bg-gray-100 text-gray-800 font-sans leading-relaxed">
+    <div class="max-w-7xl mx-auto px-5 py-5">
         {{template "content" .}}
     </div>
 </body>

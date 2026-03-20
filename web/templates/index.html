@@ -1,19 +1,19 @@
 {{template "base" .}}
 
 {{define "header"}}
-<div id="header">
-    <h1>{{.Pool.Name}}</h1>
+<div id="header" class="mb-4">
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">{{.Pool.Name}}</h1>
 
     {{if .RoundConfigs}}
-    <div class="round-payouts">
-        <h3>Round Payouts</h3>
-        <table class="round-config-table">
-            <thead><tr><th>Round</th><th>Payout</th></tr></thead>
+    <div class="mt-2">
+        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">Round Payouts</h3>
+        <table class="text-sm">
+            <thead><tr><th class="pr-4 text-left text-gray-500 font-semibold">Round</th><th class="text-left text-gray-500 font-semibold">Payout</th></tr></thead>
             <tbody>
             {{range .RoundConfigs}}
             <tr>
-                <td>{{.Name}}</td>
-                <td>${{printf "%.0f" .PayoutAmount}}</td>
+                <td class="pr-4 py-0.5">{{.Name}}</td>
+                <td class="py-0.5 font-medium">${{printf "%.0f" .PayoutAmount}}</td>
             </tr>
             {{end}}
             </tbody>
@@ -28,7 +28,7 @@
 
 {{template "header" .}}
 
-<div class="round-tabs" id="round-tabs">
+<div class="flex flex-wrap gap-1 mt-4" id="round-tabs">
     <button class="round-tab{{if eq .RoundFilter 0}} active{{end}}"
             hx-get="/pools/{{.Pool.ID}}/grid?round=0"
             hx-target="#grid" hx-swap="innerHTML"
@@ -41,29 +41,29 @@
     {{end}}
 </div>
 
-<div class="dashboard">
-    <div class="grid-section">
-        <h2>Squares Grid</h2>
+<div class="flex flex-col lg:flex-row gap-8 mt-0">
+    <div class="flex-1 overflow-x-auto">
+        <h2 class="text-lg font-bold text-gray-800 mb-2">Squares Grid</h2>
         <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
 
-    <div class="sidebar">
-        <h2>Leaderboard</h2>
+    <div class="w-full lg:w-80 flex-shrink-0">
+        <h2 class="text-lg font-bold text-gray-800 mb-2">Leaderboard</h2>
         <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading leaderboard...
         </div>
 
-        <h2>Games</h2>
-        <div id="games" class="games-list" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
+        <h2 class="text-lg font-bold text-gray-800 mb-2 mt-6">Games</h2>
+        <div id="games" class="flex flex-col gap-2" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading games...
         </div>
     </div>
 </div>
 
-<footer class="site-footer">
-    <a href="/admin/pools/{{.Pool.ID}}" class="admin-link">Admin</a>
+<footer class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400">
+    <a href="/admin/pools/{{.Pool.ID}}" class="text-gray-400 hover:text-gray-600">Admin</a>
 </footer>
 </div>
 

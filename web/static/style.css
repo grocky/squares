@@ -1,61 +1,4 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #f5f5f5;
-    color: #333;
-    line-height: 1.5;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-h1 {
-    margin-bottom: 5px;
-    color: #1a1a2e;
-}
-
-h2 {
-    margin-bottom: 10px;
-    color: #16213e;
-}
-
-.actions {
-    margin: 15px 0;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.btn {
-    background: #0f3460;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.btn:hover {
-    background: #16213e;
-}
-
-.round-tabs {
-    display: flex;
-    gap: 4px;
-    margin-top: 15px;
-    flex-wrap: wrap;
-}
-
+/* Round tabs — kept in CSS for active-state toggling via JS classList */
 .round-tab {
     background: #e2e3e5;
     color: #333;
@@ -77,22 +20,7 @@ h2 {
     color: white;
 }
 
-.dashboard {
-    display: flex;
-    gap: 30px;
-    margin-top: 0;
-}
-
-.grid-section {
-    flex: 1;
-    overflow-x: auto;
-}
-
-.sidebar {
-    width: 320px;
-    flex-shrink: 0;
-}
-
+/* Squares grid — table-layout: fixed with specific cell sizing */
 .squares-grid {
     border-collapse: collapse;
     font-size: 12px;
@@ -163,97 +91,13 @@ h2 {
     background: linear-gradient(135deg, #cce5ff 50%, #d4edda 50%);
 }
 
-.leaderboard {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-}
-
-.leaderboard th,
-.leaderboard td {
-    padding: 8px 12px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-.leaderboard thead th {
-    background: #f8f9fa;
-    font-weight: 700;
-}
-
+/* Leaderboard rocky highlight */
 .leaderboard .rocky td {
     background: #cce5ff;
     font-weight: 600;
 }
 
-.games-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.game {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: white;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    font-size: 13px;
-}
-
-.game .teams {
-    flex: 1;
-    font-weight: 500;
-}
-
-.game .score {
-    font-weight: 700;
-}
-
-.status-badge {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    text-transform: uppercase;
-    font-weight: 600;
-}
-
-.game.final .status-badge {
-    background: #d4edda;
-    color: #155724;
-}
-
-.game.in_progress .status-badge {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.game.scheduled .status-badge {
-    background: #e2e3e5;
-    color: #383d41;
-}
-
-.muted {
-    color: #888;
-    font-style: italic;
-}
-
-.btn-edit {
-    background: #e2a03f;
-}
-
-.btn-edit:hover {
-    background: #c88a2e;
-}
-
-.btn-sm {
-    padding: 3px 8px;
-    font-size: 11px;
-}
-
+/* Edit inputs (admin) */
 .edit-inline {
     border: 2px solid #e2a03f;
     border-radius: 4px;
@@ -261,16 +105,6 @@ h2 {
     font-family: inherit;
     font-size: inherit;
     background: #fffef5;
-}
-
-.edit-title {
-    font-size: 24px;
-    font-weight: bold;
-    width: 100%;
-}
-
-.edit-payout {
-    width: 100px;
 }
 
 .edit-axis {
@@ -284,9 +118,13 @@ h2 {
 }
 
 .edit-square {
-    width: 100%;
-    font-size: 11px;
+    width: 80px;
+    font-size: 0.8rem;
     padding: 2px 4px;
+}
+
+.admin-grid td {
+    padding: 2px;
 }
 
 .squares-grid td.editable {
@@ -299,60 +137,9 @@ h2 {
 }
 
 @media (max-width: 900px) {
-    .dashboard {
-        flex-direction: column;
+    .squares-grid th,
+    .squares-grid td {
+        min-width: 50px;
+        height: 45px;
     }
-    .sidebar {
-        width: 100%;
-    }
-}
-
-/* Admin */
-.admin-section {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-}
-
-.admin-section h2 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #555;
-}
-
-.admin-axis-group {
-    margin-bottom: 1rem;
-}
-
-.admin-axis-group h3 {
-    font-size: 0.95rem;
-    margin-bottom: 0.5rem;
-}
-
-.axis-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-}
-
-.axis-row label {
-    min-width: 120px;
-    font-size: 0.85rem;
-    color: #666;
-}
-
-.edit-square {
-    width: 80px;
-    font-size: 0.8rem;
-    padding: 2px 4px;
-}
-
-.admin-grid td {
-    padding: 2px;
 }

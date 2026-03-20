@@ -5,41 +5,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — {{.Pool.Name}} - Squares</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-<div class="container">
+<body class="bg-gray-100 text-gray-800 font-sans leading-relaxed">
+<div class="max-w-7xl mx-auto px-5 py-5">
 <div id="page" data-editing="true" data-pool-id="{{.Pool.ID}}">
 
-<div id="header">
-    <h1>Admin &mdash; {{.Pool.Name}}</h1>
-    <p><a href="/pools/{{.Pool.ID}}">&larr; Back to public view</a></p>
+<div id="header" class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">Admin &mdash; {{.Pool.Name}}</h1>
+    <p class="text-sm"><a href="/pools/{{.Pool.ID}}" class="text-blue-600 hover:underline">&larr; Back to public view</a></p>
 </div>
 
 <!-- Sync Section -->
-<section class="admin-section">
-    <h2>Sync ESPN Scores</h2>
-    <button class="btn" onclick="syncScores(this)">Sync ESPN Scores</button>
-
+<section class="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Sync ESPN Scores</h2>
+    <button class="bg-indigo-900 hover:bg-indigo-800 text-white text-sm font-semibold px-5 py-2.5 rounded-md cursor-pointer" onclick="syncScores(this)">Sync ESPN Scores</button>
 </section>
 
 <!-- Round Configuration Section -->
-<section class="admin-section">
-    <h2>Round Configuration</h2>
+<section class="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Round Configuration</h2>
     {{if .RoundConfigs}}
-    <table class="round-config-table">
-        <thead><tr><th>Round</th><th>Name</th><th>Payout</th></tr></thead>
+    <table class="w-full text-sm">
+        <thead><tr class="border-b border-gray-200"><th class="py-2 px-3 text-left font-semibold text-gray-500">Round</th><th class="py-2 px-3 text-left font-semibold text-gray-500">Name</th><th class="py-2 px-3 text-left font-semibold text-gray-500">Payout</th></tr></thead>
         <tbody>
         {{range .RoundConfigs}}
-        <tr>
-            <td>{{.RoundNum}}</td>
-            <td>
+        <tr class="border-b border-gray-100">
+            <td class="py-2 px-3">{{.RoundNum}}</td>
+            <td class="py-2 px-3">
                 <input type="text" class="edit-inline" value="{{.Name}}"
                        onchange="updateRoundConfig({{.RoundNum}}, 'name', this.value)">
             </td>
-            <td>
-                $<input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .PayoutAmount}}" step="0.01"
+            <td class="py-2 px-3">
+                $<input type="number" class="edit-inline w-24" value="{{printf "%.2f" .PayoutAmount}}" step="0.01"
                        onchange="updateRoundConfig({{.RoundNum}}, 'payoutAmount', parseFloat(this.value))">
             </td>
         </tr>
@@ -47,43 +47,43 @@
         </tbody>
     </table>
     {{else}}
-    <p class="muted">No round configs yet.</p>
+    <p class="text-gray-400 italic">No round configs yet.</p>
     {{end}}
 </section>
 
 <!-- Axes Section -->
-<section class="admin-section">
-    <h2>Axes</h2>
+<section class="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Axes</h2>
     {{if .RoundAxes}}
     {{range .RoundAxes}}
-    <div class="admin-axis-group">
-        <h3>Round {{.RoundNum}}: {{.RoundName}}</h3>
-        <div class="axis-row">
-            <label>Winner (columns):</label>
+    <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Round {{.RoundNum}}: {{.RoundName}}</h3>
+        <div class="flex items-center gap-1.5 mb-2">
+            <label class="min-w-[120px] text-xs text-gray-500">Winner (columns):</label>
             {{range $i, $d := .WinnerAxis.Digits}}
             <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
                    data-axis="winner" data-round="{{$.WinnerAxis.RoundNum}}" data-index="{{$i}}">
             {{end}}
-            <button class="btn btn-sm" onclick="saveAxis({{.RoundNum}}, 'winner')">Save</button>
+            <button class="bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold px-2 py-1 rounded" onclick="saveAxis({{.RoundNum}}, 'winner')">Save</button>
         </div>
-        <div class="axis-row">
-            <label>Loser (rows):</label>
+        <div class="flex items-center gap-1.5 mb-2">
+            <label class="min-w-[120px] text-xs text-gray-500">Loser (rows):</label>
             {{range $i, $d := .LoserAxis.Digits}}
             <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
                    data-axis="loser" data-round="{{$.LoserAxis.RoundNum}}" data-index="{{$i}}">
             {{end}}
-            <button class="btn btn-sm" onclick="saveAxis({{.RoundNum}}, 'loser')">Save</button>
+            <button class="bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold px-2 py-1 rounded" onclick="saveAxis({{.RoundNum}}, 'loser')">Save</button>
         </div>
     </div>
     {{end}}
     {{else}}
-    <p class="muted">No axes assigned yet.</p>
+    <p class="text-gray-400 italic">No axes assigned yet.</p>
     {{end}}
 </section>
 
 <!-- Square Assignments Section -->
-<section class="admin-section">
-    <h2>Square Assignments</h2>
+<section class="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Square Assignments</h2>
     <table class="squares-grid admin-grid">
         <thead>
             <tr>
@@ -113,10 +113,10 @@
 </section>
 
 <!-- Pool Settings Section -->
-<section class="admin-section">
-    <h2>Pool Settings</h2>
-    <label>Pool Name:</label>
-    <input type="text" class="edit-inline edit-title" value="{{.Pool.Name}}"
+<section class="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Pool Settings</h2>
+    <label class="text-sm font-medium text-gray-600 block mb-1">Pool Name:</label>
+    <input type="text" class="edit-inline text-2xl font-bold w-full" value="{{.Pool.Name}}"
            onchange="updatePool('name', this.value)">
 </section>
 

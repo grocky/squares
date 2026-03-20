@@ -27,19 +27,6 @@
     </tbody>
 </table>
 
-{{if .RoundAxes}}
-<div class="round-axes-summary">
-    <h3>Per-Round Axes</h3>
-    {{range .RoundAxes}}
-    <details>
-        <summary>Round {{.RoundNum}}: {{.RoundName}}</summary>
-        <p>Winner (columns): {{range .WinnerAxis.Digits}}{{.}} {{end}}</p>
-        <p>Loser (rows): {{range .LoserAxis.Digits}}{{.}} {{end}}</p>
-    </details>
-    {{end}}
-</div>
-{{end}}
-
 {{else}}
-<p class="muted">Axes not assigned yet.</p>
+<p class="text-gray-400 italic text-sm">Axes not assigned yet.</p>
 {{end}}

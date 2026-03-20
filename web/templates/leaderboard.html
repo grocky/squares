@@ -1,24 +1,24 @@
 {{if .Leaderboard}}
-<table class="leaderboard">
+<table class="leaderboard w-full text-sm">
     <thead>
-        <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Wins</th>
-            <th>Total</th>
+        <tr class="border-b border-gray-200">
+            <th class="py-2 px-3 text-left font-semibold text-gray-500 bg-gray-50">#</th>
+            <th class="py-2 px-3 text-left font-semibold text-gray-500 bg-gray-50">Name</th>
+            <th class="py-2 px-3 text-left font-semibold text-gray-500 bg-gray-50">Wins</th>
+            <th class="py-2 px-3 text-left font-semibold text-gray-500 bg-gray-50">Total</th>
         </tr>
     </thead>
     <tbody>
         {{range $i, $e := .Leaderboard}}
-        <tr {{if contains $e.Name "Rocky"}}class="rocky"{{end}}>
-            <td>{{add $i 1}}</td>
-            <td>{{$e.Name}}</td>
-            <td>{{$e.Wins}}</td>
-            <td>${{printf "%.2f" $e.Total}}</td>
+        <tr class="border-b border-gray-100 {{if contains $e.Name "Rocky"}}rocky{{end}}">
+            <td class="py-2 px-3">{{add $i 1}}</td>
+            <td class="py-2 px-3 font-medium">{{$e.Name}}</td>
+            <td class="py-2 px-3">{{$e.Wins}}</td>
+            <td class="py-2 px-3 font-semibold">${{printf "%.2f" $e.Total}}</td>
         </tr>
         {{end}}
     </tbody>
 </table>
 {{else}}
-<p class="muted">No payouts yet.</p>
+<p class="text-gray-400 italic">No payouts yet.</p>
 {{end}}

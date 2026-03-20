@@ -1,15 +1,37 @@
 {{if .Games}}
 {{range .Games}}
-<div class="game {{.Status}}">
-    <span class="teams">{{.AwayTeam}} @ {{.HomeTeam}}</span>
+<div class="flex items-stretch bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+    {{/* Teams column */}}
+    <div class="flex-1 flex flex-col justify-center py-3 px-4 min-w-[140px]">
+        <span class="text-sm font-medium text-gray-700">{{.AwayTeam}}</span>
+        <span class="text-sm font-medium text-gray-900">{{.HomeTeam}}</span>
+    </div>
+
     {{if eq .Status "scheduled"}}
-    <span class="score">{{formatTime .StartTime "Mon Jan 2, 3:04 PM"}}</span>
+    {{/* Scheduled: show date/time instead of scores */}}
+    <div class="w-[100px] flex flex-col items-end justify-center py-3 px-4 text-right">
+        <span class="text-xs font-semibold text-gray-500">{{formatTime .StartTime "Mon Jan 2"}}</span>
+        <span class="text-sm font-bold text-gray-700">{{formatTime .StartTime "3:04 PM"}}</span>
+    </div>
+
     {{else}}
-    <span class="score">{{.WinnerScore}} – {{.LoserScore}}</span>
+    {{/* Scores column */}}
+    <div class="w-[60px] flex flex-col justify-center py-3 px-2 text-right font-mono tabular-nums">
+        <span class="text-sm font-bold text-gray-800">{{.WinnerScore}}</span>
+        <span class="text-sm font-bold text-gray-800">{{.LoserScore}}</span>
+    </div>
+
+    {{/* Status column */}}
+    <div class="w-[80px] flex items-center justify-center py-3 px-2">
+        {{if eq .Status "final"}}
+        <span class="text-xs font-bold uppercase tracking-wide text-green-800 bg-green-100 px-2 py-0.5 rounded-full">Final</span>
+        {{else if eq .Status "in_progress"}}
+        <span class="text-xs font-bold uppercase tracking-wide text-yellow-800 bg-yellow-100 px-2 py-0.5 rounded-full">Live 🔴</span>
+        {{end}}
+    </div>
     {{end}}
-    <span class="status-badge">{{.Status}}</span>
 </div>
 {{end}}
 {{else}}
-<p class="muted">No games synced yet.</p>
+<p class="text-gray-400 italic">No games synced yet.</p>
 {{end}}
