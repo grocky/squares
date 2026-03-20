@@ -39,10 +39,6 @@ create-table: ## Create the DynamoDB table in local environment
 
 .PHONY: run
 run: ## Run the server locally against DynamoDB Local
-	$(LOCAL_ENV) go run ./cmd/server
-
-.PHONY: run-watch
-run-watch: ## Run the server with live reload on file changes (requires wgo)
 	$(LOCAL_ENV) wgo run -xdir '.git,scripts' -file '\.go$$' -file '\.html$$' -file '\.css$$' ./cmd/server
 
 .PHONY: seed
