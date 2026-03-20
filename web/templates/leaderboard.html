@@ -10,7 +10,7 @@
     </thead>
     <tbody>
         {{range $i, $e := .Leaderboard}}
-        <tr {{if eq $e.Name "Rocky"}}class="rocky"{{end}}>
+        <tr {{if contains $e.Name "Rocky"}}class="rocky"{{end}}>
             <td>{{add $i 1}}</td>
             <td>{{$e.Name}}</td>
             <td>{{$e.Wins}}</td>

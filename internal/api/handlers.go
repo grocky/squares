@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -39,6 +40,7 @@ func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS) *H
 		"add": func(a, b int) int {
 			return a + b
 		},
+		"contains": strings.Contains,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html"))
 	return &Handler{
@@ -607,7 +609,7 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 		if sq.Row >= 0 && sq.Row < 10 && sq.Col >= 0 && sq.Col < 10 {
 			data.Grid[sq.Row][sq.Col] = gridCell{
 				OwnerName: sq.OwnerName,
-				IsRocky:   sq.OwnerName == "Rocky",
+				IsRocky:   strings.Contains(sq.OwnerName, "Rocky"),
 			}
 		}
 	}
