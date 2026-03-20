@@ -2,14 +2,7 @@
 
 {{define "header"}}
 <div id="header">
-    {{if .Editing}}
-    <h1>
-        <input type="text" class="edit-inline edit-title" value="{{.Pool.Name}}"
-               onchange="updatePool('name', this.value)">
-    </h1>
-    {{else}}
     <h1>{{.Pool.Name}}</h1>
-    {{end}}
 
     {{if .RoundConfigs}}
     <div class="round-payouts">
@@ -20,14 +13,7 @@
             {{range .RoundConfigs}}
             <tr>
                 <td>{{.Name}}</td>
-                <td>
-                    {{if $.Editing}}
-                    $<input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .PayoutAmount}}" step="0.01"
-                           onchange="updateRoundConfig({{.RoundNum}}, 'payoutAmount', parseFloat(this.value))">
-                    {{else}}
-                    ${{printf "%.0f" .PayoutAmount}}
-                    {{end}}
-                </td>
+                <td>${{printf "%.0f" .PayoutAmount}}</td>
             </tr>
             {{end}}
             </tbody>
@@ -38,25 +24,18 @@
 {{end}}
 
 {{define "content"}}
-<div id="page" data-editing="{{.Editing}}" data-pool-id="{{.Pool.ID}}">
+<div id="page" data-pool-id="{{.Pool.ID}}">
 
 {{template "header" .}}
 
-<div class="actions">
-    <button class="btn" onclick="syncScores(this)">Sync ESPN Scores</button>
-    <button class="btn btn-edit" onclick="toggleEditMode()">
-        {{if .Editing}}Done Editing{{else}}Edit{{end}}
-    </button>
-</div>
-
 <div class="round-tabs" id="round-tabs">
     <button class="round-tab{{if eq .RoundFilter 0}} active{{end}}"
-            hx-get="/pools/{{.Pool.ID}}/grid?round=0{{if .Editing}}&editing=true{{end}}"
+            hx-get="/pools/{{.Pool.ID}}/grid?round=0"
             hx-target="#grid" hx-swap="innerHTML"
             hx-on::after-request="selectRoundTab(this, 0)">All</button>
     {{range .RoundConfigs}}
     <button class="round-tab{{if eq $.RoundFilter .RoundNum}} active{{end}}"
-            hx-get="/pools/{{$.Pool.ID}}/grid?round={{.RoundNum}}{{if $.Editing}}&editing=true{{end}}"
+            hx-get="/pools/{{$.Pool.ID}}/grid?round={{.RoundNum}}"
             hx-target="#grid" hx-swap="innerHTML"
             hx-on::after-request="selectRoundTab(this, {{.RoundNum}})">{{.Name}}</button>
     {{end}}
@@ -65,7 +44,7 @@
 <div class="dashboard">
     <div class="grid-section">
         <h2>Squares Grid</h2>
-        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}{{if .Editing}}&editing=true{{end}}" hx-trigger="load, refresh" hx-swap="innerHTML">
+        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
@@ -82,31 +61,14 @@
         </div>
     </div>
 </div>
+
+<footer class="site-footer">
+    <a href="/admin/pools/{{.Pool.ID}}" class="admin-link">Admin</a>
+</footer>
 </div>
 
 <script>
 var currentRound = {{.RoundFilter}};
-
-function syncScores(btn) {
-    btn.disabled = true;
-    btn.textContent = 'Syncing...';
-    var poolId = document.getElementById('page').dataset.poolId;
-    fetch('/pools/' + poolId + '/sync', {method: 'POST'})
-        .finally(function() {
-            btn.disabled = false;
-            btn.textContent = 'Sync ESPN Scores';
-        });
-}
-
-function toggleEditMode() {
-    var page = document.getElementById('page');
-    var editing = page.dataset.editing === 'true';
-    var poolId = page.dataset.poolId;
-    var params = [];
-    if (!editing) params.push('editing=true');
-    if (currentRound > 0) params.push('round=' + currentRound);
-    window.location.href = '/pools/' + poolId + (params.length ? '?' + params.join('&') : '');
-}
 
 function selectRoundTab(btn, roundNum) {
     currentRound = roundNum;
@@ -118,30 +80,6 @@ function selectRoundTab(btn, roundNum) {
 
     htmx.ajax('GET', '/pools/' + poolId + '/leaderboard?round=' + roundNum, {target: '#leaderboard', swap: 'innerHTML'});
     htmx.ajax('GET', '/pools/' + poolId + '/games?round=' + roundNum, {target: '#games', swap: 'innerHTML'});
-}
-
-function updatePool(field, value) {
-    var poolId = document.getElementById('page').dataset.poolId;
-    var body = {};
-    body[field] = value;
-    fetch('/pools/' + poolId, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body)
-    }).then(function(r) { return r.text(); })
-      .then(function(html) { document.getElementById('header').outerHTML = html; });
-}
-
-function updateRoundConfig(roundNum, field, value) {
-    var poolId = document.getElementById('page').dataset.poolId;
-    var body = {};
-    body[field] = value;
-    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/config', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body)
-    }).then(function(r) { return r.text(); })
-      .then(function(html) { document.getElementById('header').outerHTML = html; });
 }
 
 // SSE live updates

@@ -1,0 +1,173 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div id="page" data-editing="true" data-pool-id="{{.Pool.ID}}">
+
+<div id="header">
+    <h1>Admin &mdash; {{.Pool.Name}}</h1>
+    <p><a href="/pools/{{.Pool.ID}}">&larr; Back to public view</a></p>
+</div>
+
+<!-- Sync Section -->
+<section class="admin-section">
+    <h2>Sync ESPN Scores</h2>
+    <button class="btn" onclick="syncScores(this)">Sync ESPN Scores</button>
+    {{if .Pool.LastSyncAt}}
+    <span class="muted">Last sync: {{.Pool.LastSyncAt}}</span>
+    {{end}}
+</section>
+
+<!-- Round Configuration Section -->
+<section class="admin-section">
+    <h2>Round Configuration</h2>
+    {{if .RoundConfigs}}
+    <table class="round-config-table">
+        <thead><tr><th>Round</th><th>Name</th><th>Payout</th></tr></thead>
+        <tbody>
+        {{range .RoundConfigs}}
+        <tr>
+            <td>{{.RoundNum}}</td>
+            <td>
+                <input type="text" class="edit-inline" value="{{.Name}}"
+                       onchange="updateRoundConfig({{.RoundNum}}, 'name', this.value)">
+            </td>
+            <td>
+                $<input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .PayoutAmount}}" step="0.01"
+                       onchange="updateRoundConfig({{.RoundNum}}, 'payoutAmount', parseFloat(this.value))">
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="muted">No round configs yet.</p>
+    {{end}}
+</section>
+
+<!-- Axes Section -->
+<section class="admin-section">
+    <h2>Axes</h2>
+    {{if .RoundAxes}}
+    {{range .RoundAxes}}
+    <div class="admin-axis-group">
+        <h3>Round {{.RoundNum}}: {{.RoundName}}</h3>
+        <div class="axis-row">
+            <label>Winner (columns):</label>
+            {{range $i, $d := .WinnerAxis.Digits}}
+            <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
+                   data-axis="winner" data-round="{{$.WinnerAxis.RoundNum}}" data-index="{{$i}}">
+            {{end}}
+            <button class="btn btn-sm" onclick="saveAxis({{.RoundNum}}, 'winner')">Save</button>
+        </div>
+        <div class="axis-row">
+            <label>Loser (rows):</label>
+            {{range $i, $d := .LoserAxis.Digits}}
+            <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
+                   data-axis="loser" data-round="{{$.LoserAxis.RoundNum}}" data-index="{{$i}}">
+            {{end}}
+            <button class="btn btn-sm" onclick="saveAxis({{.RoundNum}}, 'loser')">Save</button>
+        </div>
+    </div>
+    {{end}}
+    {{else}}
+    <p class="muted">No axes assigned yet.</p>
+    {{end}}
+</section>
+
+<!-- Square Assignments Section -->
+<section class="admin-section">
+    <h2>Square Assignments</h2>
+    <table class="squares-grid admin-grid">
+        <thead>
+            <tr>
+                <th class="corner"></th>
+                {{range seq 10}}
+                <th>{{.}}</th>
+                {{end}}
+            </tr>
+        </thead>
+        <tbody>
+            {{$grid := .Grid}}
+            {{range $r, $_ := seq 10}}
+            <tr>
+                <th>{{$r}}</th>
+                {{range $c, $_ := seq 10}}
+                {{$cell := index (index $grid $r) $c}}
+                <td>
+                    <input type="text" class="edit-inline edit-square" value="{{$cell.OwnerName}}"
+                           onblur="submitSquare(this, {{$r}}, {{$c}})"
+                           onkeydown="if(event.key==='Enter'){submitSquare(this, {{$r}}, {{$c}});}">
+                </td>
+                {{end}}
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+<!-- Pool Settings Section -->
+<section class="admin-section">
+    <h2>Pool Settings</h2>
+    <label>Pool Name:</label>
+    <input type="text" class="edit-inline edit-title" value="{{.Pool.Name}}"
+           onchange="updatePool('name', this.value)">
+</section>
+
+</div>
+
+<script>
+function syncScores(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+    var poolId = document.getElementById('page').dataset.poolId;
+    fetch('/pools/' + poolId + '/sync', {method: 'POST'})
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Sync ESPN Scores';
+        });
+}
+
+function updatePool(field, value) {
+    var poolId = document.getElementById('page').dataset.poolId;
+    var body = {};
+    body[field] = value;
+    fetch('/pools/' + poolId, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+}
+
+function updateRoundConfig(roundNum, field, value) {
+    var poolId = document.getElementById('page').dataset.poolId;
+    var body = {};
+    body[field] = value;
+    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/config', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+}
+
+function submitSquare(input, row, col) {
+    var poolId = document.getElementById('page').dataset.poolId;
+    fetch('/pools/' + poolId + '/squares/' + row + '/' + col, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ownerName: input.value})
+    });
+}
+
+function saveAxis(roundNum, axisType) {
+    var inputs = document.querySelectorAll('input.edit-axis[data-axis="' + axisType + '"][data-round="' + roundNum + '"]');
+    var digits = [];
+    inputs.forEach(function(inp) { digits.push(parseInt(inp.value, 10)); });
+    var poolId = document.getElementById('page').dataset.poolId;
+    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/axis/' + axisType, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({digits: digits})
+    });
+}
+</script>
+{{end}}

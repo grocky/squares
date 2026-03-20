@@ -78,6 +78,11 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Put("/pools/{poolID}/rounds/{roundNum}/config", h.handleUpdateRoundConfig)
 	r.Get("/pools/{poolID}/header", h.handleHeader)
 
+	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/pools/main", http.StatusFound)
+	})
+	r.Get("/admin/pools/{poolID}", h.handleAdminDashboard)
+
 	return r
 }
 
@@ -157,8 +162,21 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
 		return
 	}
-	data.Editing = r.URL.Query().Get("editing") == "true"
 	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
+func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	data, err := h.buildDashboardData(r.Context(), poolID, 0)
+	if err != nil {
+		log.Printf("error building admin dashboard: %v", err)
+		http.Error(w, "failed to load pool", http.StatusInternalServerError)
+		return
+	}
+	data.Editing = true
+	if err := h.templates.ExecuteTemplate(w, "admin.html", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
 }
@@ -171,7 +189,6 @@ func (h *Handler) handleGrid(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
 	}
-	data.Editing = r.URL.Query().Get("editing") == "true"
 	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
@@ -187,7 +204,6 @@ func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(r.Context(), poolID)
 	data := dashboardData{
 		Pool:         pool,
-		Editing:      r.URL.Query().Get("editing") == "true",
 		RoundConfigs: roundConfigs,
 	}
 	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {

@@ -4,48 +4,24 @@
         <tr>
             <th class="corner">Winner\Loser</th>
             {{range $i, $d := .WinnerAxis.Digits}}
-            <th>
-                {{if $.Editing}}
-                <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
-                       data-axis="winner" data-round="{{$.WinnerAxis.RoundNum}}" data-index="{{$i}}">
-                {{else}}
-                {{$d}}
-                {{end}}
-            </th>
-            {{end}}
-            {{if $.Editing}}
-            <th><button class="btn btn-sm" onclick="saveAxis({{.WinnerAxis.RoundNum}}, 'winner')">Save</button></th>
+            <th>{{$d}}</th>
             {{end}}
         </tr>
     </thead>
     <tbody>
         {{$grid := .Grid}}
-        {{$editing := .Editing}}
         {{range $r, $_ := seq 10}}
         <tr>
-            <th>
-                {{if $editing}}
-                <input type="number" class="edit-axis" min="0" max="9" value="{{index $.LoserAxis.Digits $r}}"
-                       data-axis="loser" data-round="{{$.LoserAxis.RoundNum}}" data-index="{{$r}}">
-                {{else}}
-                {{index $.LoserAxis.Digits $r}}
-                {{end}}
-            </th>
+            <th>{{index $.LoserAxis.Digits $r}}</th>
             {{range $c, $_ := seq 10}}
             {{$cell := index (index $grid $r) $c}}
-            <td class="{{if $cell.IsWinner}}winner{{end}} {{if $cell.IsRocky}}rocky{{end}} {{if $editing}}editable{{end}}"
-                {{if $editing}}onclick="editSquare(this, {{$r}}, {{$c}})"{{end}}>
+            <td class="{{if $cell.IsWinner}}winner{{end}} {{if $cell.IsRocky}}rocky{{end}}">
                 <span class="owner">{{$cell.OwnerName}}</span>
                 {{if $cell.IsWinner}}
                 <span class="payout">${{printf "%.0f" $cell.Amount}}</span>
                 {{end}}
             </td>
             {{end}}
-        </tr>
-        {{end}}
-        {{if $editing}}
-        <tr>
-            <th><button class="btn btn-sm" onclick="saveAxis({{$.LoserAxis.RoundNum}}, 'loser')">Save</button></th>
         </tr>
         {{end}}
     </tbody>
@@ -62,53 +38,6 @@
     </details>
     {{end}}
 </div>
-{{end}}
-
-{{if .Editing}}
-<script>
-function editSquare(td, row, col) {
-    if (td.querySelector('input')) return;
-    var owner = td.querySelector('.owner');
-    var current = owner ? owner.textContent.trim() : '';
-    var input = document.createElement('input');
-    input.type = 'text';
-    input.value = current;
-    input.className = 'edit-inline edit-square';
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { submitSquare(input, row, col); }
-        if (e.key === 'Escape') { input.replaceWith(owner); }
-    });
-    input.addEventListener('blur', function() {
-        submitSquare(input, row, col);
-    });
-    if (owner) owner.replaceWith(input);
-    input.focus();
-    input.select();
-}
-
-function submitSquare(input, row, col) {
-    var poolId = document.getElementById('page').dataset.poolId;
-    fetch('/pools/' + poolId + '/squares/' + row + '/' + col, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ownerName: input.value})
-    }).then(function(r) { return r.text(); })
-      .then(function(html) { document.getElementById('grid').innerHTML = html; });
-}
-
-function saveAxis(roundNum, axisType) {
-    var inputs = document.querySelectorAll('input.edit-axis[data-axis="' + axisType + '"][data-round="' + roundNum + '"]');
-    var digits = [];
-    inputs.forEach(function(inp) { digits.push(parseInt(inp.value, 10)); });
-    var poolId = document.getElementById('page').dataset.poolId;
-    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/axis/' + axisType, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({digits: digits})
-    }).then(function(r) { return r.text(); })
-      .then(function(html) { document.getElementById('grid').innerHTML = html; });
-}
-</script>
 {{end}}
 
 {{else}}
