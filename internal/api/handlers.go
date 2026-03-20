@@ -699,7 +699,14 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 		data.Leaderboard = append(data.Leaderboard, *e)
 	}
 	sort.Slice(data.Leaderboard, func(i, j int) bool {
-		return data.Leaderboard[i].Total > data.Leaderboard[j].Total
+		a, b := data.Leaderboard[i], data.Leaderboard[j]
+		if a.Total != b.Total {
+			return a.Total > b.Total
+		}
+		if a.Wins != b.Wins {
+			return a.Wins > b.Wins
+		}
+		return a.Name < b.Name
 	})
 
 	return data, nil
