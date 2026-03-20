@@ -1,7 +1,10 @@
+// seed loads pool configuration from config/seed.json into DynamoDB.
+// Run: make seed
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -14,6 +17,19 @@ import (
 	"github.com/grocky/squares/internal/models"
 )
 
+type axisPair struct {
+	RoundNum int   `json:"roundNum"`
+	Winner   []int `json:"winner"`
+	Loser    []int `json:"loser"`
+}
+
+type seedConfig struct {
+	Pool         models.Pool          `json:"pool"`
+	RoundConfigs []models.RoundConfig `json:"roundConfigs"`
+	Axes         []axisPair           `json:"axes"`
+	Squares      []models.Square      `json:"squares"`
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -25,25 +41,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to load AWS config: %v", err)
 	}
-	ddb := dynamodb.NewFromConfig(cfg)
-	repo := dynrepo.NewRepo(ddb)
+	repo := dynrepo.NewRepo(dynamodb.NewFromConfig(cfg))
+
+	sc, err := loadSeedConfig("config/seed.json")
+	if err != nil {
+		log.Printf("no seed config found (%v), using defaults", err)
+		sc = defaultSeedConfig()
+	}
 
 	poolID := "main"
+	sc.Pool.ID = poolID
+	sc.Pool.CreatedAt = time.Now().UTC()
 
-	// Create pool (no PayoutAmount — payouts are per-round now)
-	pool := models.Pool{
-		ID:        poolID,
-		Name:      "2025 NCAA Tournament",
-		Status:    "active",
-		CreatedAt: time.Now().UTC(),
-	}
-	if err := repo.PutPool(ctx, pool); err != nil {
+	// Pool
+	if err := repo.PutPool(ctx, sc.Pool); err != nil {
 		log.Fatalf("failed to create pool: %v", err)
 	}
-	log.Println("Created pool:", pool.Name)
+	log.Println("Created pool:", sc.Pool.Name)
 
-	// Seed round configs with default payouts
-	for _, rc := range models.DefaultRoundConfigs() {
+	// Round configs
+	for _, rc := range sc.RoundConfigs {
 		rc.PoolID = poolID
 		if err := repo.PutRoundConfig(ctx, rc); err != nil {
 			log.Fatalf("failed to create round config %d: %v", rc.RoundNum, err)
@@ -51,27 +68,60 @@ func main() {
 		log.Printf("Round %d (%s): $%.0f", rc.RoundNum, rc.Name, rc.PayoutAmount)
 	}
 
-	// Assign axes for all 6 rounds (seeded from pool ID)
+	// Axes
+	for _, ap := range sc.Axes {
+		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: ap.RoundNum, Type: "winner", Digits: ap.Winner}); err != nil {
+			log.Fatalf("failed to save winner axis round %d: %v", ap.RoundNum, err)
+		}
+		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: ap.RoundNum, Type: "loser", Digits: ap.Loser}); err != nil {
+			log.Fatalf("failed to save loser axis round %d: %v", ap.RoundNum, err)
+		}
+		log.Printf("Round %d axes seeded", ap.RoundNum)
+	}
+
+	// Squares
+	for _, sq := range sc.Squares {
+		sq.PoolID = poolID
+		if err := repo.PutSquare(ctx, sq); err != nil {
+			log.Fatalf("failed to assign square (%d,%d): %v", sq.Row, sq.Col, err)
+		}
+	}
+
+	fmt.Printf("Seeded pool %q with %d squares\n", poolID, len(sc.Squares))
+}
+
+func loadSeedConfig(path string) (seedConfig, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return seedConfig{}, err
+	}
+	defer f.Close()
+
+	var sc seedConfig
+	if err := json.NewDecoder(f).Decode(&sc); err != nil {
+		return seedConfig{}, fmt.Errorf("invalid seed config: %w", err)
+	}
+	return sc, nil
+}
+
+func defaultSeedConfig() seedConfig {
+	poolID := "main"
+
 	var seed int64
 	for _, c := range poolID {
 		seed = seed*31 + int64(c)
 	}
 	rng := rand.New(rand.NewSource(seed))
 
+	var axes []axisPair
 	for roundNum := 1; roundNum <= 6; roundNum++ {
-		winnerDigits := rng.Perm(10)
-		loserDigits := rng.Perm(10)
-
-		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "winner", Digits: winnerDigits}); err != nil {
-			log.Fatalf("failed to create winner axis round %d: %v", roundNum, err)
-		}
-		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "loser", Digits: loserDigits}); err != nil {
-			log.Fatalf("failed to create loser axis round %d: %v", roundNum, err)
-		}
-		log.Printf("Round %d — Winner axis: %v, Loser axis: %v", roundNum, winnerDigits, loserDigits)
+		axes = append(axes, axisPair{
+			RoundNum: roundNum,
+			Winner:   rng.Perm(10),
+			Loser:    rng.Perm(10),
+		})
 	}
 
-	// Assign squares: 20 owners, 5 squares each = 100
 	owners := []string{
 		"Rocky", "Alice", "Bob", "Charlie", "Diana",
 		"Eve", "Frank", "Grace", "Hank", "Ivy",
@@ -79,18 +129,14 @@ func main() {
 		"Olivia", "Pete", "Quinn", "Rita", "Sam",
 	}
 
-	// Rocky gets specific squares: (3,7), (6,2), (8,0)
 	rockySquares := [][2]int{{3, 7}, {6, 2}, {8, 0}}
 	assigned := make(map[[2]int]bool)
+	var squares []models.Square
 	for _, rc := range rockySquares {
-		sq := models.Square{PoolID: poolID, Row: rc[0], Col: rc[1], OwnerName: "Rocky"}
-		if err := repo.PutSquare(ctx, sq); err != nil {
-			log.Fatalf("failed to assign square: %v", err)
-		}
+		squares = append(squares, models.Square{Row: rc[0], Col: rc[1], OwnerName: "Rocky"})
 		assigned[rc] = true
 	}
 
-	// Build list of remaining cells
 	var remaining [][2]int
 	for r := 0; r < 10; r++ {
 		for c := 0; c < 10; c++ {
@@ -99,33 +145,28 @@ func main() {
 			}
 		}
 	}
-	rng.Shuffle(len(remaining), func(i, j int) {
-		remaining[i], remaining[j] = remaining[j], remaining[i]
-	})
+	rng.Shuffle(len(remaining), func(i, j int) { remaining[i], remaining[j] = remaining[j], remaining[i] })
 
-	// Rocky needs 2 more squares (already has 3, needs 5 total)
 	for i := 0; i < 2; i++ {
 		rc := remaining[i]
-		sq := models.Square{PoolID: poolID, Row: rc[0], Col: rc[1], OwnerName: "Rocky"}
-		if err := repo.PutSquare(ctx, sq); err != nil {
-			log.Fatalf("failed to assign square: %v", err)
-		}
+		squares = append(squares, models.Square{Row: rc[0], Col: rc[1], OwnerName: "Rocky"})
 		assigned[rc] = true
 	}
 	remaining = remaining[2:]
 
-	// Assign 5 squares each to the other 19 owners
 	idx := 0
 	for _, owner := range owners[1:] {
 		for j := 0; j < 5; j++ {
 			rc := remaining[idx]
-			sq := models.Square{PoolID: poolID, Row: rc[0], Col: rc[1], OwnerName: owner}
-			if err := repo.PutSquare(ctx, sq); err != nil {
-				log.Fatalf("failed to assign square: %v", err)
-			}
+			squares = append(squares, models.Square{Row: rc[0], Col: rc[1], OwnerName: owner})
 			idx++
 		}
 	}
 
-	fmt.Printf("Seeded pool %q with %d squares across %d owners\n", poolID, 100, len(owners))
+	return seedConfig{
+		Pool:         models.Pool{Name: "2025 NCAA Tournament", Status: "active"},
+		RoundConfigs: models.DefaultRoundConfigs(),
+		Axes:         axes,
+		Squares:      squares,
+	}
 }

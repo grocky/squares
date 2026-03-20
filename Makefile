@@ -26,7 +26,7 @@ dev-down: ## Stop DynamoDB Local
 	docker compose down
 
 .PHONY: dev-setup
-dev-setup: dev create-table seed ## Start DynamoDB Local, create table, and seed data
+dev-setup: dev-down dev create-table seed ## Fresh restart of DynamoDB Local, create table, and seed data
 
 .PHONY: create-table
 create-table: ## Create the DynamoDB table in local environment
@@ -45,6 +45,11 @@ run: ## Run the server locally against DynamoDB Local
 seed: ## Seed local DynamoDB with sample data
 	@echo "$(GREEN)Seeding local DynamoDB...$(RESET)"
 	$(LOCAL_ENV) go run ./cmd/seed
+
+.PHONY: dump-seed
+dump-seed: ## Snapshot current DynamoDB state into cmd/seed/main.go
+	@echo "$(GREEN)Dumping current state to seed file...$(RESET)"
+	$(LOCAL_ENV) go run ./cmd/dump
 
 .PHONY: sync
 sync: ## Sync live ESPN scores against local server

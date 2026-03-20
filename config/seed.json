@@ -1,0 +1,812 @@
+{
+  "pool": {
+    "ID": "main",
+    "Name": "2025 NCAA Tournament",
+    "Status": "active",
+    "CreatedAt": "2026-03-20T19:41:51Z"
+  },
+  "roundConfigs": [
+    {
+      "PoolID": "main",
+      "RoundNum": 1,
+      "Name": "Round of 64",
+      "PayoutAmount": 5
+    },
+    {
+      "PoolID": "main",
+      "RoundNum": 2,
+      "Name": "Round of 32",
+      "PayoutAmount": 10
+    },
+    {
+      "PoolID": "main",
+      "RoundNum": 3,
+      "Name": "Sweet 16",
+      "PayoutAmount": 20
+    },
+    {
+      "PoolID": "main",
+      "RoundNum": 4,
+      "Name": "Elite 8",
+      "PayoutAmount": 45
+    },
+    {
+      "PoolID": "main",
+      "RoundNum": 5,
+      "Name": "Final Four",
+      "PayoutAmount": 90
+    },
+    {
+      "PoolID": "main",
+      "RoundNum": 6,
+      "Name": "Championship",
+      "PayoutAmount": 160
+    }
+  ],
+  "axes": [
+    {
+      "roundNum": 1,
+      "winner": [
+        9,
+        7,
+        6,
+        0,
+        2,
+        8,
+        1,
+        3,
+        5,
+        4
+      ],
+      "loser": [
+        2,
+        1,
+        8,
+        9,
+        3,
+        6,
+        4,
+        7,
+        0,
+        5
+      ]
+    },
+    {
+      "roundNum": 2,
+      "winner": [
+        4,
+        5,
+        9,
+        3,
+        8,
+        6,
+        2,
+        1,
+        0,
+        7
+      ],
+      "loser": [
+        4,
+        5,
+        9,
+        6,
+        0,
+        3,
+        1,
+        7,
+        2,
+        8
+      ]
+    },
+    {
+      "roundNum": 3,
+      "winner": [
+        2,
+        8,
+        3,
+        5,
+        6,
+        1,
+        7,
+        4,
+        9,
+        0
+      ],
+      "loser": [
+        9,
+        7,
+        8,
+        5,
+        3,
+        4,
+        2,
+        6,
+        0,
+        1
+      ]
+    },
+    {
+      "roundNum": 4,
+      "winner": [
+        1,
+        0,
+        5,
+        6,
+        4,
+        2,
+        7,
+        8,
+        3,
+        9
+      ],
+      "loser": [
+        1,
+        8,
+        5,
+        6,
+        0,
+        3,
+        2,
+        7,
+        4,
+        9
+      ]
+    },
+    {
+      "roundNum": 5,
+      "winner": [
+        1,
+        6,
+        7,
+        2,
+        3,
+        8,
+        0,
+        5,
+        9,
+        4
+      ],
+      "loser": [
+        7,
+        9,
+        2,
+        6,
+        0,
+        5,
+        4,
+        1,
+        8,
+        3
+      ]
+    },
+    {
+      "roundNum": 6,
+      "winner": [
+        1,
+        6,
+        0,
+        8,
+        9,
+        5,
+        7,
+        4,
+        3,
+        2
+      ],
+      "loser": [
+        4,
+        7,
+        8,
+        5,
+        3,
+        9,
+        1,
+        0,
+        6,
+        2
+      ]
+    }
+  ],
+  "squares": [
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 0,
+      "OwnerName": "Alice"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 1,
+      "OwnerName": "Grace"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 2,
+      "OwnerName": "Pete"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 3,
+      "OwnerName": "Ivy"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 4,
+      "OwnerName": "Jack"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 5,
+      "OwnerName": "Charlie"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 6,
+      "OwnerName": "Rita"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 7,
+      "OwnerName": "Eve"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 8,
+      "OwnerName": "Leo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 0,
+      "Col": 9,
+      "OwnerName": "Jack"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 0,
+      "OwnerName": "Jack"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 1,
+      "OwnerName": "Pete"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 2,
+      "OwnerName": "Karen"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 3,
+      "OwnerName": "Alice"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 4,
+      "OwnerName": "Mona"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 5,
+      "OwnerName": "Grace"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 6,
+      "OwnerName": "Charlie"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 7,
+      "OwnerName": "Diana"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 8,
+      "OwnerName": "Eve"
+    },
+    {
+      "PoolID": "main",
+      "Row": 1,
+      "Col": 9,
+      "OwnerName": "Bob"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 0,
+      "OwnerName": "Leo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 1,
+      "OwnerName": "Bob"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 2,
+      "OwnerName": "Diana"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 3,
+      "OwnerName": "Frank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 4,
+      "OwnerName": "Bob"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 5,
+      "OwnerName": "Sam"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 6,
+      "OwnerName": "Charlie"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 7,
+      "OwnerName": "Rita"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 8,
+      "OwnerName": "Nick"
+    },
+    {
+      "PoolID": "main",
+      "Row": 2,
+      "Col": 9,
+      "OwnerName": "Jack"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 0,
+      "OwnerName": "Pete"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 1,
+      "OwnerName": "Pete"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 2,
+      "OwnerName": "Sam"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 3,
+      "OwnerName": "Nick"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 4,
+      "OwnerName": "Mona"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 5,
+      "OwnerName": "Mona"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 6,
+      "OwnerName": "Frank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 7,
+      "OwnerName": "Foo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 8,
+      "OwnerName": "Rocky"
+    },
+    {
+      "PoolID": "main",
+      "Row": 3,
+      "Col": 9,
+      "OwnerName": "Leo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 0,
+      "OwnerName": "Olivia"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 1,
+      "OwnerName": "Quinn"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 2,
+      "OwnerName": "Ivy"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 3,
+      "OwnerName": "Foo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 4,
+      "OwnerName": "Grace"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 5,
+      "OwnerName": "Alice"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 6,
+      "OwnerName": "Olivia"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 7,
+      "OwnerName": "Nick"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 8,
+      "OwnerName": "Rocky"
+    },
+    {
+      "PoolID": "main",
+      "Row": 4,
+      "Col": 9,
+      "OwnerName": "Jack"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 0,
+      "OwnerName": "Alice"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 1,
+      "OwnerName": "Leo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 2,
+      "OwnerName": "Grace"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 3,
+      "OwnerName": "Frank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 4,
+      "OwnerName": "Ivy"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 5,
+      "OwnerName": "Olivia"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 6,
+      "OwnerName": "Frank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 7,
+      "OwnerName": "Pete"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 8,
+      "OwnerName": "Rocky"
+    },
+    {
+      "PoolID": "main",
+      "Row": 5,
+      "Col": 9,
+      "OwnerName": "Frank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 0,
+      "OwnerName": "Karen"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 1,
+      "OwnerName": "Quinn"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 2,
+      "OwnerName": "Foo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 3,
+      "OwnerName": "Sam"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 4,
+      "OwnerName": "Quinn"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 5,
+      "OwnerName": "Eve"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 6,
+      "OwnerName": "Grace"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 7,
+      "OwnerName": "Leo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 8,
+      "OwnerName": "Rocky"
+    },
+    {
+      "PoolID": "main",
+      "Row": 6,
+      "Col": 9,
+      "OwnerName": "Big Chris"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 0,
+      "OwnerName": "Karen"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 1,
+      "OwnerName": "Rita"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 2,
+      "OwnerName": "Bob"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 3,
+      "OwnerName": "Diana"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 4,
+      "OwnerName": "Hank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 5,
+      "OwnerName": "Charlie"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 6,
+      "OwnerName": "Bob"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 7,
+      "OwnerName": "Mona"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 8,
+      "OwnerName": "Chili"
+    },
+    {
+      "PoolID": "main",
+      "Row": 7,
+      "Col": 9,
+      "OwnerName": "Karen"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 0,
+      "OwnerName": "Foo"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 1,
+      "OwnerName": "Rita"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 2,
+      "OwnerName": "Nick"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 3,
+      "OwnerName": "Charlie"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 4,
+      "OwnerName": "Quinn"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 5,
+      "OwnerName": "Diana"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 6,
+      "OwnerName": "Sam"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 7,
+      "OwnerName": "Eve"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 8,
+      "OwnerName": "Eve"
+    },
+    {
+      "PoolID": "main",
+      "Row": 8,
+      "Col": 9,
+      "OwnerName": "Olivia"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 0,
+      "OwnerName": "Nick"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 1,
+      "OwnerName": "Sam"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 2,
+      "OwnerName": "Quinn"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 3,
+      "OwnerName": "Hank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 4,
+      "OwnerName": "Hank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 5,
+      "OwnerName": "Hank"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 6,
+      "OwnerName": "Ivy"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 7,
+      "OwnerName": "Diana"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 8,
+      "OwnerName": "Alice"
+    },
+    {
+      "PoolID": "main",
+      "Row": 9,
+      "Col": 9,
+      "OwnerName": "Hank"
+    }
+  ]
+}
