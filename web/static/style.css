@@ -306,3 +306,53 @@ h2 {
         width: 100%;
     }
 }
+
+/* Admin */
+.admin-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.admin-section h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+}
+
+.admin-axis-group {
+    margin-bottom: 1rem;
+}
+
+.admin-axis-group h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.axis-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.axis-row label {
+    min-width: 120px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.edit-square {
+    width: 80px;
+    font-size: 0.8rem;
+    padding: 2px 4px;
+}
+
+.admin-grid td {
+    padding: 2px;
+}

@@ -38,6 +38,7 @@ type scoreboardResponse struct {
 type event struct {
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
+	Date         string        `json:"date"`
 	Competitions []competition `json:"competitions"`
 }
 
@@ -173,11 +174,17 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 			roundNum = roundFromHeadline(comp.Notes[0].Headline)
 		}
 
+		startTime, _ := time.Parse("2006-01-02T15:04Z", ev.Date)
+		if startTime.IsZero() {
+			startTime, _ = time.Parse(time.RFC3339, ev.Date)
+		}
+
 		g := models.Game{
-			EspnID:   ev.ID,
-			Status:   status,
-			RoundNum: roundNum,
-			SyncedAt: time.Now().UTC(),
+			EspnID:    ev.ID,
+			Status:    status,
+			RoundNum:  roundNum,
+			StartTime: startTime,
+			SyncedAt:  time.Now().UTC(),
 		}
 
 		var homeTeam, awayTeam string

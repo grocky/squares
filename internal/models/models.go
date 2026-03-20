@@ -52,6 +52,7 @@ type Game struct {
 	WinnerScore int
 	LoserScore  int
 	Status      string // "scheduled", "in_progress", "final"
+	StartTime   time.Time
 	SyncedAt    time.Time
 }
 

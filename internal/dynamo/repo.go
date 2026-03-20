@@ -265,6 +265,7 @@ func (r *Repo) PutGame(ctx context.Context, game models.Game) error {
 			"winnerScore": &types.AttributeValueMemberN{Value: strconv.Itoa(game.WinnerScore)},
 			"loserScore":  &types.AttributeValueMemberN{Value: strconv.Itoa(game.LoserScore)},
 			"status":      &types.AttributeValueMemberS{Value: game.Status},
+			"startTime":   &types.AttributeValueMemberS{Value: game.StartTime.Format(time.RFC3339)},
 			"syncedAt":    &types.AttributeValueMemberS{Value: game.SyncedAt.Format(time.RFC3339)},
 		},
 	})
@@ -309,6 +310,9 @@ func (r *Repo) GetAllGames(ctx context.Context, poolID string) ([]models.Game, e
 		}
 		if v, ok := item["status"].(*types.AttributeValueMemberS); ok {
 			g.Status = v.Value
+		}
+		if v, ok := item["startTime"].(*types.AttributeValueMemberS); ok {
+			g.StartTime, _ = time.Parse(time.RFC3339, v.Value)
 		}
 		if v, ok := item["syncedAt"].(*types.AttributeValueMemberS); ok {
 			g.SyncedAt, _ = time.Parse(time.RFC3339, v.Value)

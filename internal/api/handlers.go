@@ -40,6 +40,12 @@ func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS, s 
 			return s
 		},
 		"printf": fmt.Sprintf,
+		"formatTime": func(t time.Time, layout string) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.In(time.FixedZone("EDT", -4*60*60)).Format(layout)
+		},
 		"add": func(a, b int) int {
 			return a + b
 		},
@@ -176,7 +182,7 @@ func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Editing = true
-	if err := h.templates.ExecuteTemplate(w, "admin.html", data); err != nil {
+	if err := h.templates.ExecuteTemplate(w, "admin", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
 }
@@ -586,6 +592,9 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 	} else {
 		data.Games = allGames
 	}
+	sort.Slice(data.Games, func(i, j int) bool {
+		return data.Games[i].StartTime.Before(data.Games[j].StartTime)
+	})
 
 	// Build a set of game IDs in the filtered round for payout filtering
 	filteredGameIDs := make(map[string]bool)

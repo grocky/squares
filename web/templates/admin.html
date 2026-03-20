@@ -1,6 +1,15 @@
-{{template "base" .}}
-
-{{define "content"}}
+{{define "admin"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — {{.Pool.Name}} - Squares</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
 <div id="page" data-editing="true" data-pool-id="{{.Pool.ID}}">
 
 <div id="header">
@@ -12,9 +21,7 @@
 <section class="admin-section">
     <h2>Sync ESPN Scores</h2>
     <button class="btn" onclick="syncScores(this)">Sync ESPN Scores</button>
-    {{if .Pool.LastSyncAt}}
-    <span class="muted">Last sync: {{.Pool.LastSyncAt}}</span>
-    {{end}}
+
 </section>
 
 <!-- Round Configuration Section -->
@@ -170,4 +177,8 @@ function saveAxis(roundNum, axisType) {
     });
 }
 </script>
+</div>
+</div>
+</body>
+</html>
 {{end}}
