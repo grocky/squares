@@ -15,6 +15,8 @@ import (
 	"github.com/grocky/squares/internal/api"
 	dynrepo "github.com/grocky/squares/internal/dynamo"
 	"github.com/grocky/squares/internal/espn"
+	"github.com/grocky/squares/internal/sse"
+	"github.com/grocky/squares/internal/syncer"
 	"github.com/grocky/squares/web"
 )
 
@@ -29,7 +31,9 @@ func main() {
 	repo := dynrepo.NewRepo(ddb)
 	espnClient := espn.NewClient(repo)
 
-	handler := api.NewHandler(repo, espnClient, web.FS)
+	hub := sse.NewHub()
+	s := syncer.New(repo, espnClient)
+	handler := api.NewHandler(repo, espnClient, web.FS, s, hub)
 	mux := handler.Routes()
 
 	// Serve static files

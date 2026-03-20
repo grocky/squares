@@ -41,6 +41,10 @@ create-table: ## Create the DynamoDB table in local environment
 run: ## Run the server locally against DynamoDB Local
 	$(LOCAL_ENV) wgo run -xdir '.git,scripts' -file '\.go$$' -file '\.html$$' -file '\.css$$' ./cmd/server
 
+.PHONY: cron-local
+cron-local: ## Run the score sync cron locally
+	$(LOCAL_ENV) SYNC_INTERVAL=60s POOL_ID=main go run ./cmd/cron
+
 .PHONY: seed
 seed: ## Seed local DynamoDB with sample data
 	@echo "$(GREEN)Seeding local DynamoDB...$(RESET)"
@@ -64,6 +68,12 @@ build: ## Build Lambda binary (linux/arm64)
 	@echo "$(GREEN)Building Lambda binary...$(RESET)"
 	GOOS=linux GOARCH=arm64 go build -o bootstrap ./cmd/server
 	@echo "$(GREEN)Built bootstrap binary for Lambda$(RESET)"
+
+.PHONY: build-cron
+build-cron: ## Build Lambda binary for cron (linux/arm64)
+	@echo "$(GREEN)Building cron Lambda binary...$(RESET)"
+	GOOS=linux GOARCH=arm64 go build -o bootstrap-cron ./cmd/cron
+	@echo "$(GREEN)Built bootstrap-cron binary for Lambda$(RESET)"
 
 # =============================================================================
 # Quality
@@ -90,7 +100,7 @@ test-coverage: ## Run tests with coverage report
 
 .PHONY: clean
 clean: ## Remove build artifacts
-	rm -f bootstrap coverage.out
+	rm -f bootstrap bootstrap-cron coverage.out
 	@echo "$(GREEN)Cleaned build artifacts$(RESET)"
 
 # =============================================================================

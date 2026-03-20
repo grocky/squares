@@ -18,16 +18,19 @@ import (
 	"github.com/grocky/squares/internal/dynamo"
 	"github.com/grocky/squares/internal/espn"
 	"github.com/grocky/squares/internal/models"
-	"github.com/grocky/squares/internal/scorer"
+	"github.com/grocky/squares/internal/sse"
+	"github.com/grocky/squares/internal/syncer"
 )
 
 type Handler struct {
 	repo       *dynamo.Repo
 	espnClient *espn.Client
 	templates  *template.Template
+	syncer     *syncer.Syncer
+	hub        *sse.Hub
 }
 
-func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS) *Handler {
+func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS, s *syncer.Syncer, hub *sse.Hub) *Handler {
 	funcMap := template.FuncMap{
 		"seq": func(n int) []int {
 			s := make([]int, n)
@@ -47,6 +50,8 @@ func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS) *H
 		repo:       repo,
 		espnClient: espnClient,
 		templates:  tmpl,
+		syncer:     s,
+		hub:        hub,
 	}
 }
 
@@ -62,6 +67,7 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Get("/pools/{poolID}/leaderboard", h.handleLeaderboard)
 	r.Get("/pools/{poolID}/games", h.handleGames)
 	r.Post("/pools/{poolID}/sync", h.handleSync)
+	r.Get("/pools/{poolID}/events", h.hub.Handler())
 	r.Post("/pools/{poolID}/squares", h.handleAssignSquares)
 	r.Post("/pools/{poolID}/axes", h.handleAssignAxes)
 
@@ -216,95 +222,14 @@ func (h *Handler) handleGames(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
-	ctx := r.Context()
 
-	games, err := h.espnClient.SyncGames(ctx, poolID)
-	if err != nil {
+	if err := h.syncer.Sync(r.Context(), poolID); err != nil {
 		log.Printf("sync error: %v", err)
 		http.Error(w, "sync failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	squares, err := h.repo.GetAllSquares(ctx, poolID)
-	if err != nil {
-		http.Error(w, "failed to get squares", http.StatusInternalServerError)
-		return
-	}
-	squareMap := make(map[[2]int]models.Square)
-	for _, sq := range squares {
-		squareMap[[2]int{sq.Row, sq.Col}] = sq
-	}
-
-	// Build round config map for payout amounts
-	roundConfigs, err := h.repo.GetAllRoundConfigs(ctx, poolID)
-	if err != nil {
-		http.Error(w, "failed to get round configs", http.StatusInternalServerError)
-		return
-	}
-	rcMap := make(map[int]models.RoundConfig)
-	for _, rc := range roundConfigs {
-		rcMap[rc.RoundNum] = rc
-	}
-
-	for _, game := range games {
-		if game.Status != "final" {
-			continue
-		}
-		roundNum := game.RoundNum
-		if roundNum < 1 || roundNum > 6 {
-			roundNum = 1
-		}
-
-		winnerAxis, err := h.repo.GetRoundAxis(ctx, poolID, roundNum, "winner")
-		if err != nil {
-			log.Printf("no winner axis for round %d: %v", roundNum, err)
-			continue
-		}
-		loserAxis, err := h.repo.GetRoundAxis(ctx, poolID, roundNum, "loser")
-		if err != nil {
-			log.Printf("no loser axis for round %d: %v", roundNum, err)
-			continue
-		}
-
-		row, col := scorer.FindWinningSquare(game, winnerAxis, loserAxis)
-		if row < 0 || col < 0 {
-			continue
-		}
-
-		exists, err := h.repo.PayoutExists(ctx, poolID, game.EspnID, row, col)
-		if err != nil {
-			log.Printf("error checking payout: %v", err)
-			continue
-		}
-		if exists {
-			continue
-		}
-
-		sq, ok := squareMap[[2]int{row, col}]
-		if !ok {
-			continue
-		}
-
-		payoutAmount := 0.0
-		if rc, ok := rcMap[roundNum]; ok {
-			payoutAmount = rc.PayoutAmount
-		}
-
-		payout := models.Payout{
-			PoolID:      poolID,
-			GameID:      game.EspnID,
-			Row:         row,
-			Col:         col,
-			OwnerName:   sq.OwnerName,
-			Amount:      payoutAmount,
-			WinnerScore: game.WinnerScore,
-			LoserScore:  game.LoserScore,
-		}
-		if err := h.repo.PutPayout(ctx, payout); err != nil {
-			log.Printf("error creating payout: %v", err)
-		}
-	}
-
+	h.hub.Broadcast("sync")
 	http.Redirect(w, r, "/pools/"+poolID, http.StatusFound)
 }
 

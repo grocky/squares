@@ -67,19 +67,19 @@
 <div class="dashboard">
     <div class="grid-section">
         <h2>Squares Grid</h2>
-        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}{{if .Editing}}&editing=true{{end}}" hx-trigger="load" hx-swap="innerHTML">
+        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}{{if .Editing}}&editing=true{{end}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
 
     <div class="sidebar">
         <h2>Leaderboard</h2>
-        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard?round={{.RoundFilter}}" hx-trigger="load" hx-swap="innerHTML">
+        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading leaderboard...
         </div>
 
         <h2>Games</h2>
-        <div id="games" class="games-list" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load" hx-swap="innerHTML">
+        <div id="games" class="games-list" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading games...
         </div>
     </div>
@@ -134,5 +134,14 @@ function updateRoundConfig(roundNum, field, value) {
     }).then(function(r) { return r.text(); })
       .then(function(html) { document.getElementById('header').outerHTML = html; });
 }
+
+// SSE live updates
+var poolId = document.getElementById('page').dataset.poolId;
+var evtSource = new EventSource('/pools/' + poolId + '/events');
+evtSource.addEventListener('sync', function(e) {
+    htmx.trigger(document.getElementById('grid'), 'refresh');
+    htmx.trigger(document.getElementById('leaderboard'), 'refresh');
+    htmx.trigger(document.getElementById('games'), 'refresh');
+});
 </script>
 {{end}}
