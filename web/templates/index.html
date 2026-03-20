@@ -43,9 +43,7 @@
 {{template "header" .}}
 
 <div class="actions">
-    <form method="POST" action="/pools/{{.Pool.ID}}/sync">
-        <button type="submit" class="btn">Sync ESPN Scores</button>
-    </form>
+    <button class="btn" onclick="syncScores(this)">Sync ESPN Scores</button>
     <button class="btn btn-edit" onclick="toggleEditMode()">
         {{if .Editing}}Done Editing{{else}}Edit{{end}}
     </button>
@@ -88,6 +86,17 @@
 
 <script>
 var currentRound = {{.RoundFilter}};
+
+function syncScores(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+    var poolId = document.getElementById('page').dataset.poolId;
+    fetch('/pools/' + poolId + '/sync', {method: 'POST'})
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Sync ESPN Scores';
+        });
+}
 
 function toggleEditMode() {
     var page = document.getElementById('page');

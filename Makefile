@@ -41,9 +41,10 @@ create-table: ## Create the DynamoDB table in local environment
 run: ## Run the server locally against DynamoDB Local
 	$(LOCAL_ENV) wgo run -xdir '.git,scripts' -file '\.go$$' -file '\.html$$' -file '\.css$$' ./cmd/server
 
+# Run cron locally — notifies the local server via SERVER_URL after each sync
 .PHONY: cron-local
-cron-local: ## Run the score sync cron locally
-	$(LOCAL_ENV) SYNC_INTERVAL=60s POOL_ID=main go run ./cmd/cron
+cron-local: ## Run the score sync cron locally (notifies server for SSE broadcast)
+	$(LOCAL_ENV) SYNC_INTERVAL=60s POOL_ID=main SERVER_URL=http://localhost:8080 go run ./cmd/cron
 
 .PHONY: seed
 seed: ## Seed local DynamoDB with sample data
