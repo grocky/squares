@@ -30,36 +30,46 @@ func main() {
 
 	poolID := "main"
 
-	// Create pool
+	// Create pool (no PayoutAmount — payouts are per-round now)
 	pool := models.Pool{
-		ID:           poolID,
-		Name:         "2025 NCAA Tournament",
-		PayoutAmount: 25.00,
-		Status:       "active",
-		CreatedAt:    time.Now().UTC(),
+		ID:        poolID,
+		Name:      "2025 NCAA Tournament",
+		Status:    "active",
+		CreatedAt: time.Now().UTC(),
 	}
 	if err := repo.PutPool(ctx, pool); err != nil {
 		log.Fatalf("failed to create pool: %v", err)
 	}
 	log.Println("Created pool:", pool.Name)
 
-	// Assign axes (seeded from pool ID)
+	// Seed round configs with default payouts
+	for _, rc := range models.DefaultRoundConfigs() {
+		rc.PoolID = poolID
+		if err := repo.PutRoundConfig(ctx, rc); err != nil {
+			log.Fatalf("failed to create round config %d: %v", rc.RoundNum, err)
+		}
+		log.Printf("Round %d (%s): $%.0f", rc.RoundNum, rc.Name, rc.PayoutAmount)
+	}
+
+	// Assign axes for all 6 rounds (seeded from pool ID)
 	var seed int64
 	for _, c := range poolID {
 		seed = seed*31 + int64(c)
 	}
 	rng := rand.New(rand.NewSource(seed))
-	rowDigits := rng.Perm(10)
-	colDigits := rng.Perm(10)
 
-	if err := repo.PutAxis(ctx, models.Axis{PoolID: poolID, Type: "row", Digits: rowDigits}); err != nil {
-		log.Fatalf("failed to create row axis: %v", err)
+	for roundNum := 1; roundNum <= 6; roundNum++ {
+		winnerDigits := rng.Perm(10)
+		loserDigits := rng.Perm(10)
+
+		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "winner", Digits: winnerDigits}); err != nil {
+			log.Fatalf("failed to create winner axis round %d: %v", roundNum, err)
+		}
+		if err := repo.PutRoundAxis(ctx, models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "loser", Digits: loserDigits}); err != nil {
+			log.Fatalf("failed to create loser axis round %d: %v", roundNum, err)
+		}
+		log.Printf("Round %d — Winner axis: %v, Loser axis: %v", roundNum, winnerDigits, loserDigits)
 	}
-	if err := repo.PutAxis(ctx, models.Axis{PoolID: poolID, Type: "col", Digits: colDigits}); err != nil {
-		log.Fatalf("failed to create col axis: %v", err)
-	}
-	log.Printf("Row axis: %v", rowDigits)
-	log.Printf("Col axis: %v", colDigits)
 
 	// Assign squares: 20 owners, 5 squares each = 100
 	owners := []string{

@@ -3,17 +3,36 @@ package models
 import "time"
 
 type Pool struct {
-	ID           string
+	ID        string
+	Name      string
+	Status    string // "active", "complete"
+	CreatedAt time.Time
+}
+
+type RoundConfig struct {
+	PoolID       string
+	RoundNum     int
 	Name         string
-	PayoutAmount float64 // dollars per winning square per game
-	Status       string  // "active", "complete"
-	CreatedAt    time.Time
+	PayoutAmount float64
+}
+
+// DefaultRoundConfigs returns the 6 NCAA tournament rounds with default payouts.
+func DefaultRoundConfigs() []RoundConfig {
+	return []RoundConfig{
+		{RoundNum: 1, Name: "Round of 64", PayoutAmount: 10},
+		{RoundNum: 2, Name: "Round of 32", PayoutAmount: 20},
+		{RoundNum: 3, Name: "Sweet 16", PayoutAmount: 30},
+		{RoundNum: 4, Name: "Elite 8", PayoutAmount: 50},
+		{RoundNum: 5, Name: "Final Four", PayoutAmount: 100},
+		{RoundNum: 6, Name: "Championship", PayoutAmount: 200},
+	}
 }
 
 type Axis struct {
-	PoolID string
-	Type   string // "row" or "col"
-	Digits []int  // shuffled 0-9
+	PoolID   string
+	RoundNum int
+	Type     string // "winner" or "loser"
+	Digits   []int  // shuffled 0-9
 }
 
 type Square struct {
@@ -24,24 +43,25 @@ type Square struct {
 }
 
 type Game struct {
-	PoolID    string
-	EspnID    string
-	HomeTeam  string
-	AwayTeam  string
-	Round     string
-	HomeScore int
-	AwayScore int
-	Status    string // "scheduled", "in_progress", "final"
-	SyncedAt  time.Time
+	PoolID      string
+	EspnID      string
+	HomeTeam    string
+	AwayTeam    string
+	Round       string
+	RoundNum    int
+	WinnerScore int
+	LoserScore  int
+	Status      string // "scheduled", "in_progress", "final"
+	SyncedAt    time.Time
 }
 
 type Payout struct {
-	PoolID    string
-	GameID    string
-	Row       int
-	Col       int
-	OwnerName string
-	Amount    float64
-	HomeScore int
-	AwayScore int
+	PoolID      string
+	GameID      string
+	Row         int
+	Col         int
+	OwnerName   string
+	Amount      float64
+	WinnerScore int
+	LoserScore  int
 }

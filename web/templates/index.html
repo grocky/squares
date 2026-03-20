@@ -7,13 +7,32 @@
         <input type="text" class="edit-inline edit-title" value="{{.Pool.Name}}"
                onchange="updatePool('name', this.value)">
     </h1>
-    <p>Payout per game: $
-        <input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .Pool.PayoutAmount}}" step="0.01"
-               onchange="updatePool('payoutAmount', parseFloat(this.value))">
-    </p>
     {{else}}
     <h1>{{.Pool.Name}}</h1>
-    <p>Payout per game: ${{printf "%.2f" .Pool.PayoutAmount}}</p>
+    {{end}}
+
+    {{if .RoundConfigs}}
+    <div class="round-payouts">
+        <h3>Round Payouts</h3>
+        <table class="round-config-table">
+            <thead><tr><th>Round</th><th>Payout</th></tr></thead>
+            <tbody>
+            {{range .RoundConfigs}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>
+                    {{if $.Editing}}
+                    $<input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .PayoutAmount}}" step="0.01"
+                           onchange="updateRoundConfig({{.RoundNum}}, 'payoutAmount', parseFloat(this.value))">
+                    {{else}}
+                    ${{printf "%.0f" .PayoutAmount}}
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
     {{end}}
 </div>
 {{end}}
@@ -53,7 +72,7 @@
             <div class="game {{.Status}}">
                 <span class="teams">{{.AwayTeam}} @ {{.HomeTeam}}</span>
                 {{if ne .Status "scheduled"}}
-                <span class="score">{{.AwayScore}} - {{.HomeScore}}</span>
+                <span class="score">{{.LoserScore}} - {{.WinnerScore}}</span>
                 {{end}}
                 <span class="status-badge">{{.Status}}</span>
             </div>
@@ -79,6 +98,18 @@ function updatePool(field, value) {
     var body = {};
     body[field] = value;
     fetch('/pools/' + poolId, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(function(r) { return r.text(); })
+      .then(function(html) { document.getElementById('header').outerHTML = html; });
+}
+
+function updateRoundConfig(roundNum, field, value) {
+    var poolId = document.getElementById('page').dataset.poolId;
+    var body = {};
+    body[field] = value;
+    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/config', {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)

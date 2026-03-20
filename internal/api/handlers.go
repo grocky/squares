@@ -61,7 +61,8 @@ func (h *Handler) Routes() *chi.Mux {
 
 	r.Put("/pools/{poolID}", h.handleUpdatePool)
 	r.Put("/pools/{poolID}/squares/{row}/{col}", h.handleUpdateSquare)
-	r.Put("/pools/{poolID}/axis/{type}", h.handleUpdateAxis)
+	r.Put("/pools/{poolID}/rounds/{roundNum}/axis/{type}", h.handleUpdateRoundAxis)
+	r.Put("/pools/{poolID}/rounds/{roundNum}/config", h.handleUpdateRoundConfig)
 	r.Get("/pools/{poolID}/header", h.handleHeader)
 
 	return r
@@ -77,16 +78,12 @@ func (h *Handler) handleCreatePool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.FormValue("name")
-	payoutStr := r.FormValue("payoutAmount")
-	var payout float64
-	fmt.Sscanf(payoutStr, "%f", &payout)
 
 	pool := models.Pool{
-		ID:           fmt.Sprintf("%d", time.Now().UnixNano()),
-		Name:         name,
-		PayoutAmount: payout,
-		Status:       "active",
-		CreatedAt:    time.Now().UTC(),
+		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+		Name:      name,
+		Status:    "active",
+		CreatedAt: time.Now().UTC(),
 	}
 	if err := h.repo.PutPool(r.Context(), pool); err != nil {
 		http.Error(w, "failed to create pool", http.StatusInternalServerError)
@@ -102,22 +99,31 @@ type gridCell struct {
 	IsRocky   bool
 }
 
+type roundAxisPair struct {
+	RoundNum   int
+	RoundName  string
+	WinnerAxis models.Axis
+	LoserAxis  models.Axis
+}
+
 type dashboardData struct {
-	Pool        models.Pool
-	RowAxis     models.Axis
-	ColAxis     models.Axis
-	Grid        [10][10]gridCell
-	Payouts     []models.Payout
-	Leaderboard []leaderEntry
-	Games       []models.Game
-	HasAxes     bool
-	Editing     bool
+	Pool         models.Pool
+	WinnerAxis   models.Axis
+	LoserAxis    models.Axis
+	Grid         [10][10]gridCell
+	Payouts      []models.Payout
+	Leaderboard  []leaderEntry
+	Games        []models.Game
+	HasAxes      bool
+	Editing      bool
+	RoundConfigs []models.RoundConfig
+	RoundAxes    []roundAxisPair
 }
 
 type leaderEntry struct {
-	Name   string
-	Total  float64
-	Wins   int
+	Name  string
+	Total float64
+	Wins  int
 }
 
 func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
@@ -154,9 +160,11 @@ func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "pool not found", http.StatusNotFound)
 		return
 	}
+	roundConfigs, _ := h.repo.GetAllRoundConfigs(r.Context(), poolID)
 	data := dashboardData{
-		Pool:    pool,
-		Editing: r.URL.Query().Get("editing") == "true",
+		Pool:         pool,
+		Editing:      r.URL.Query().Get("editing") == "true",
+		RoundConfigs: roundConfigs,
 	}
 	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
 		log.Printf("template error: %v", err)
@@ -186,23 +194,6 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pool, err := h.repo.GetPool(ctx, poolID)
-	if err != nil {
-		http.Error(w, "pool not found", http.StatusNotFound)
-		return
-	}
-
-	rowAxis, err := h.repo.GetAxis(ctx, poolID, "row")
-	if err != nil {
-		http.Error(w, "axes not assigned", http.StatusBadRequest)
-		return
-	}
-	colAxis, err := h.repo.GetAxis(ctx, poolID, "col")
-	if err != nil {
-		http.Error(w, "axes not assigned", http.StatusBadRequest)
-		return
-	}
-
 	squares, err := h.repo.GetAllSquares(ctx, poolID)
 	if err != nil {
 		http.Error(w, "failed to get squares", http.StatusInternalServerError)
@@ -213,11 +204,38 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) {
 		squareMap[[2]int{sq.Row, sq.Col}] = sq
 	}
 
+	// Build round config map for payout amounts
+	roundConfigs, err := h.repo.GetAllRoundConfigs(ctx, poolID)
+	if err != nil {
+		http.Error(w, "failed to get round configs", http.StatusInternalServerError)
+		return
+	}
+	rcMap := make(map[int]models.RoundConfig)
+	for _, rc := range roundConfigs {
+		rcMap[rc.RoundNum] = rc
+	}
+
 	for _, game := range games {
 		if game.Status != "final" {
 			continue
 		}
-		row, col := scorer.FindWinningSquare(game, rowAxis, colAxis)
+		roundNum := game.RoundNum
+		if roundNum < 1 || roundNum > 6 {
+			roundNum = 1
+		}
+
+		winnerAxis, err := h.repo.GetRoundAxis(ctx, poolID, roundNum, "winner")
+		if err != nil {
+			log.Printf("no winner axis for round %d: %v", roundNum, err)
+			continue
+		}
+		loserAxis, err := h.repo.GetRoundAxis(ctx, poolID, roundNum, "loser")
+		if err != nil {
+			log.Printf("no loser axis for round %d: %v", roundNum, err)
+			continue
+		}
+
+		row, col := scorer.FindWinningSquare(game, winnerAxis, loserAxis)
 		if row < 0 || col < 0 {
 			continue
 		}
@@ -236,15 +254,20 @@ func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		payoutAmount := 0.0
+		if rc, ok := rcMap[roundNum]; ok {
+			payoutAmount = rc.PayoutAmount
+		}
+
 		payout := models.Payout{
-			PoolID:    poolID,
-			GameID:    game.EspnID,
-			Row:       row,
-			Col:       col,
-			OwnerName: sq.OwnerName,
-			Amount:    pool.PayoutAmount,
-			HomeScore: game.HomeScore,
-			AwayScore: game.AwayScore,
+			PoolID:      poolID,
+			GameID:      game.EspnID,
+			Row:         row,
+			Col:         col,
+			OwnerName:   sq.OwnerName,
+			Amount:      payoutAmount,
+			WinnerScore: game.WinnerScore,
+			LoserScore:  game.LoserScore,
 		}
 		if err := h.repo.PutPayout(ctx, payout); err != nil {
 			log.Printf("error creating payout: %v", err)
@@ -287,33 +310,35 @@ func (h *Handler) handleAssignAxes(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
 	ctx := r.Context()
 
-	// Idempotent: check if axes already exist
-	if _, err := h.repo.GetAxis(ctx, poolID, "row"); err == nil {
+	// Idempotent: check if round 1 winner axis already exists
+	if _, err := h.repo.GetRoundAxis(ctx, poolID, 1, "winner"); err == nil {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"ok":true,"message":"axes already assigned"}`)
 		return
 	}
 
-	// Seed from pool ID for reproducibility
 	var seed int64
 	for _, c := range poolID {
 		seed = seed*31 + int64(c)
 	}
 	rng := rand.New(rand.NewSource(seed))
 
-	rowDigits := rng.Perm(10)
-	colDigits := rng.Perm(10)
+	// Create axes for all 6 rounds
+	for roundNum := 1; roundNum <= 6; roundNum++ {
+		winnerDigits := rng.Perm(10)
+		loserDigits := rng.Perm(10)
 
-	rowAxis := models.Axis{PoolID: poolID, Type: "row", Digits: rowDigits}
-	colAxis := models.Axis{PoolID: poolID, Type: "col", Digits: colDigits}
+		winnerAxis := models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "winner", Digits: winnerDigits}
+		loserAxis := models.Axis{PoolID: poolID, RoundNum: roundNum, Type: "loser", Digits: loserDigits}
 
-	if err := h.repo.PutAxis(ctx, rowAxis); err != nil {
-		http.Error(w, "failed to save row axis", http.StatusInternalServerError)
-		return
-	}
-	if err := h.repo.PutAxis(ctx, colAxis); err != nil {
-		http.Error(w, "failed to save col axis", http.StatusInternalServerError)
-		return
+		if err := h.repo.PutRoundAxis(ctx, winnerAxis); err != nil {
+			http.Error(w, fmt.Sprintf("failed to save winner axis round %d", roundNum), http.StatusInternalServerError)
+			return
+		}
+		if err := h.repo.PutRoundAxis(ctx, loserAxis); err != nil {
+			http.Error(w, fmt.Sprintf("failed to save loser axis round %d", roundNum), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -331,8 +356,7 @@ func (h *Handler) handleUpdatePool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         *string  `json:"name"`
-		PayoutAmount *float64 `json:"payoutAmount"`
+		Name *string `json:"name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -342,16 +366,14 @@ func (h *Handler) handleUpdatePool(w http.ResponseWriter, r *http.Request) {
 	if req.Name != nil {
 		pool.Name = *req.Name
 	}
-	if req.PayoutAmount != nil {
-		pool.PayoutAmount = *req.PayoutAmount
-	}
 
 	if err := h.repo.PutPool(ctx, pool); err != nil {
 		http.Error(w, "failed to update pool", http.StatusInternalServerError)
 		return
 	}
 
-	data := dashboardData{Pool: pool, Editing: true}
+	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
+	data := dashboardData{Pool: pool, Editing: true, RoundConfigs: roundConfigs}
 	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
@@ -400,11 +422,16 @@ func (h *Handler) handleUpdateSquare(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleUpdateAxis(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleUpdateRoundAxis(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
+	roundNum, err := strconv.Atoi(chi.URLParam(r, "roundNum"))
+	if err != nil || roundNum < 1 || roundNum > 6 {
+		http.Error(w, "roundNum must be 1-6", http.StatusBadRequest)
+		return
+	}
 	axisType := chi.URLParam(r, "type")
-	if axisType != "row" && axisType != "col" {
-		http.Error(w, "type must be 'row' or 'col'", http.StatusBadRequest)
+	if axisType != "winner" && axisType != "loser" {
+		http.Error(w, "type must be 'winner' or 'loser'", http.StatusBadRequest)
 		return
 	}
 
@@ -421,11 +448,12 @@ func (h *Handler) handleUpdateAxis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	axis := models.Axis{
-		PoolID: poolID,
-		Type:   axisType,
-		Digits: req.Digits,
+		PoolID:   poolID,
+		RoundNum: roundNum,
+		Type:     axisType,
+		Digits:   req.Digits,
 	}
-	if err := h.repo.PutAxis(r.Context(), axis); err != nil {
+	if err := h.repo.PutRoundAxis(r.Context(), axis); err != nil {
 		http.Error(w, "failed to update axis", http.StatusInternalServerError)
 		return
 	}
@@ -441,6 +469,49 @@ func (h *Handler) handleUpdateAxis(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleUpdateRoundConfig(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	roundNum, err := strconv.Atoi(chi.URLParam(r, "roundNum"))
+	if err != nil || roundNum < 1 || roundNum > 6 {
+		http.Error(w, "roundNum must be 1-6", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Name         *string  `json:"name"`
+		PayoutAmount *float64 `json:"payoutAmount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	rc, err := h.repo.GetRoundConfig(r.Context(), poolID, roundNum)
+	if err != nil {
+		http.Error(w, "round config not found", http.StatusNotFound)
+		return
+	}
+
+	if req.Name != nil {
+		rc.Name = *req.Name
+	}
+	if req.PayoutAmount != nil {
+		rc.PayoutAmount = *req.PayoutAmount
+	}
+
+	if err := h.repo.PutRoundConfig(r.Context(), rc); err != nil {
+		http.Error(w, "failed to update round config", http.StatusInternalServerError)
+		return
+	}
+
+	roundConfigs, _ := h.repo.GetAllRoundConfigs(r.Context(), poolID)
+	pool, _ := h.repo.GetPool(r.Context(), poolID)
+	data := dashboardData{Pool: pool, Editing: true, RoundConfigs: roundConfigs}
+	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
 func (h *Handler) buildDashboardData(ctx context.Context, poolID string) (dashboardData, error) {
 	pool, err := h.repo.GetPool(ctx, poolID)
 	if err != nil {
@@ -450,11 +521,39 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string) (dashbo
 	var data dashboardData
 	data.Pool = pool
 
-	rowAxis, rowErr := h.repo.GetAxis(ctx, poolID, "row")
-	colAxis, colErr := h.repo.GetAxis(ctx, poolID, "col")
-	if rowErr == nil && colErr == nil {
-		data.RowAxis = rowAxis
-		data.ColAxis = colAxis
+	// Load round configs
+	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
+	data.RoundConfigs = roundConfigs
+
+	// Load axes for all rounds; use round 1 as the default display axes
+	var roundAxes []roundAxisPair
+	rcMap := make(map[int]string)
+	for _, rc := range roundConfigs {
+		rcMap[rc.RoundNum] = rc.Name
+	}
+
+	for roundNum := 1; roundNum <= 6; roundNum++ {
+		winnerAxis, wErr := h.repo.GetRoundAxis(ctx, poolID, roundNum, "winner")
+		loserAxis, lErr := h.repo.GetRoundAxis(ctx, poolID, roundNum, "loser")
+		if wErr == nil && lErr == nil {
+			name := rcMap[roundNum]
+			if name == "" {
+				name = fmt.Sprintf("Round %d", roundNum)
+			}
+			roundAxes = append(roundAxes, roundAxisPair{
+				RoundNum:   roundNum,
+				RoundName:  name,
+				WinnerAxis: winnerAxis,
+				LoserAxis:  loserAxis,
+			})
+		}
+	}
+	data.RoundAxes = roundAxes
+
+	// Use round 1 axes as default for grid display
+	if len(roundAxes) > 0 {
+		data.WinnerAxis = roundAxes[0].WinnerAxis
+		data.LoserAxis = roundAxes[0].LoserAxis
 		data.HasAxes = true
 	}
 
@@ -471,9 +570,34 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string) (dashbo
 		}
 	}
 
+	// Build game → round number map so we can look up current payout amounts
+	games, err := h.repo.GetAllGames(ctx, poolID)
+	if err != nil {
+		return dashboardData{}, err
+	}
+	data.Games = games
+	gameRoundMap := make(map[string]int)
+	for _, g := range games {
+		gameRoundMap[g.EspnID] = g.RoundNum
+	}
+
+	// Build round config payout map
+	rcPayoutMap := make(map[int]float64)
+	for _, rc := range roundConfigs {
+		rcPayoutMap[rc.RoundNum] = rc.PayoutAmount
+	}
+
 	payouts, err := h.repo.GetAllPayouts(ctx, poolID)
 	if err != nil {
 		return dashboardData{}, err
+	}
+	// Override stored payout amount with current round config amount
+	for i, p := range payouts {
+		if roundNum, ok := gameRoundMap[p.GameID]; ok {
+			if currentAmount, ok := rcPayoutMap[roundNum]; ok {
+				payouts[i].Amount = currentAmount
+			}
+		}
 	}
 	data.Payouts = payouts
 	for _, p := range payouts {
@@ -501,12 +625,6 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string) (dashbo
 	sort.Slice(data.Leaderboard, func(i, j int) bool {
 		return data.Leaderboard[i].Total > data.Leaderboard[j].Total
 	})
-
-	games, err := h.repo.GetAllGames(ctx, poolID)
-	if err != nil {
-		return dashboardData{}, err
-	}
-	data.Games = games
 
 	return data, nil
 }

@@ -98,16 +98,32 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 			Status:   normalizeStatus(comp.Status.Type.Name),
 			SyncedAt: time.Now().UTC(),
 		}
+
+		var homeTeam, awayTeam string
+		var homeScore, awayScore int
 		for _, c := range comp.Competitors {
 			score, _ := strconv.Atoi(c.Score)
 			if c.HomeAway == "home" {
-				g.HomeTeam = c.Team.DisplayName
-				g.HomeScore = score
+				homeTeam = c.Team.DisplayName
+				homeScore = score
 			} else {
-				g.AwayTeam = c.Team.DisplayName
-				g.AwayScore = score
+				awayTeam = c.Team.DisplayName
+				awayScore = score
 			}
 		}
+
+		g.HomeTeam = homeTeam
+		g.AwayTeam = awayTeam
+
+		// Determine winner/loser scores: higher score = winner
+		if homeScore >= awayScore {
+			g.WinnerScore = homeScore
+			g.LoserScore = awayScore
+		} else {
+			g.WinnerScore = awayScore
+			g.LoserScore = homeScore
+		}
+
 		games = append(games, g)
 	}
 	return games, nil

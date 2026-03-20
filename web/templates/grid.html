@@ -2,19 +2,19 @@
 <table class="squares-grid">
     <thead>
         <tr>
-            <th class="corner">Home\Away</th>
-            {{range $i, $d := .ColAxis.Digits}}
+            <th class="corner">Winner\Loser</th>
+            {{range $i, $d := .WinnerAxis.Digits}}
             <th>
                 {{if $.Editing}}
                 <input type="number" class="edit-axis" min="0" max="9" value="{{$d}}"
-                       data-axis="col" data-index="{{$i}}">
+                       data-axis="winner" data-round="{{$.WinnerAxis.RoundNum}}" data-index="{{$i}}">
                 {{else}}
                 {{$d}}
                 {{end}}
             </th>
             {{end}}
             {{if $.Editing}}
-            <th><button class="btn btn-sm" onclick="saveAxis('col')">Save</button></th>
+            <th><button class="btn btn-sm" onclick="saveAxis({{.WinnerAxis.RoundNum}}, 'winner')">Save</button></th>
             {{end}}
         </tr>
     </thead>
@@ -25,10 +25,10 @@
         <tr>
             <th>
                 {{if $editing}}
-                <input type="number" class="edit-axis" min="0" max="9" value="{{index $.RowAxis.Digits $r}}"
-                       data-axis="row" data-index="{{$r}}">
+                <input type="number" class="edit-axis" min="0" max="9" value="{{index $.LoserAxis.Digits $r}}"
+                       data-axis="loser" data-round="{{$.LoserAxis.RoundNum}}" data-index="{{$r}}">
                 {{else}}
-                {{index $.RowAxis.Digits $r}}
+                {{index $.LoserAxis.Digits $r}}
                 {{end}}
             </th>
             {{range $c, $_ := seq 10}}
@@ -45,11 +45,24 @@
         {{end}}
         {{if $editing}}
         <tr>
-            <th><button class="btn btn-sm" onclick="saveAxis('row')">Save</button></th>
+            <th><button class="btn btn-sm" onclick="saveAxis({{$.LoserAxis.RoundNum}}, 'loser')">Save</button></th>
         </tr>
         {{end}}
     </tbody>
 </table>
+
+{{if .RoundAxes}}
+<div class="round-axes-summary">
+    <h3>Per-Round Axes</h3>
+    {{range .RoundAxes}}
+    <details>
+        <summary>Round {{.RoundNum}}: {{.RoundName}}</summary>
+        <p>Winner (columns): {{range .WinnerAxis.Digits}}{{.}} {{end}}</p>
+        <p>Loser (rows): {{range .LoserAxis.Digits}}{{.}} {{end}}</p>
+    </details>
+    {{end}}
+</div>
+{{end}}
 
 {{if .Editing}}
 <script>
@@ -83,12 +96,12 @@ function submitSquare(input, row, col) {
       .then(function(html) { document.getElementById('grid').innerHTML = html; });
 }
 
-function saveAxis(axisType) {
-    var inputs = document.querySelectorAll('input.edit-axis[data-axis="' + axisType + '"]');
+function saveAxis(roundNum, axisType) {
+    var inputs = document.querySelectorAll('input.edit-axis[data-axis="' + axisType + '"][data-round="' + roundNum + '"]');
     var digits = [];
     inputs.forEach(function(inp) { digits.push(parseInt(inp.value, 10)); });
     var poolId = document.getElementById('page').dataset.poolId;
-    fetch('/pools/' + poolId + '/axis/' + axisType, {
+    fetch('/pools/' + poolId + '/rounds/' + roundNum + '/axis/' + axisType, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({digits: digits})
