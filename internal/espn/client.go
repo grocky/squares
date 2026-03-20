@@ -245,6 +245,10 @@ func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, e
 			if g.RoundNum == 0 && existing.RoundNum > 0 {
 				g.RoundNum = existing.RoundNum
 			}
+			// Preserve start time if we failed to parse it this sync
+			if g.StartTime.IsZero() && !existing.StartTime.IsZero() {
+				g.StartTime = existing.StartTime
+			}
 		}
 
 		if err := c.repo.PutGame(ctx, *g); err != nil {
