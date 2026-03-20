@@ -13,7 +13,11 @@ import (
 	"github.com/grocky/squares/internal/models"
 )
 
-const scoreboardURL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?groups=100&limit=50"
+const scoreboardBaseURL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?groups=100&limit=50"
+
+// tournamentStartDate is the first day of the NCAA tournament (Round of 64).
+// Update this each year.
+const tournamentStartDate = "20260319"
 
 type Client struct {
 	httpClient *http.Client
@@ -93,28 +97,69 @@ func roundFromHeadline(headline string) int {
 	}
 }
 
-func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, scoreboardURL, nil)
+// fetchDate fetches games for a single YYYYMMDD date string.
+func (c *Client) fetchDate(ctx context.Context, date string) ([]event, error) {
+	url := scoreboardBaseURL + "&dates=" + date
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetching scoreboard: %w", err)
+		return nil, fmt.Errorf("fetching scoreboard for %s: %w", date, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ESPN API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("ESPN API returned status %d for date %s", resp.StatusCode, date)
 	}
 
 	var sb scoreboardResponse
 	if err := json.NewDecoder(resp.Body).Decode(&sb); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+		return nil, fmt.Errorf("decoding response for %s: %w", date, err)
+	}
+	return sb.Events, nil
+}
+
+// dateRange returns all YYYYMMDD strings from start through today (inclusive).
+func dateRange(startDate string) ([]string, error) {
+	start, err := time.Parse("20060102", startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date %q: %w", startDate, err)
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	var dates []string
+	for d := start; !d.After(today); d = d.AddDate(0, 0, 1) {
+		dates = append(dates, d.Format("20060102"))
+	}
+	return dates, nil
+}
+
+func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
+	dates, err := dateRange(tournamentStartDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deduplicate by ESPN ID — later dates win (more up-to-date status)
+	seen := make(map[string]event)
+	for _, date := range dates {
+		events, err := c.fetchDate(ctx, date)
+		if err != nil {
+			return nil, err
+		}
+		for _, ev := range events {
+			seen[ev.ID] = ev
+		}
+	}
+
+	var allEvents []event
+	for _, ev := range seen {
+		allEvents = append(allEvents, ev)
 	}
 
 	var games []models.Game
-	for _, ev := range sb.Events {
+	for _, ev := range allEvents {
 		if len(ev.Competitions) == 0 {
 			continue
 		}
