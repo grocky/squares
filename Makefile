@@ -2,6 +2,7 @@ GREEN  := $(shell tput -Txterm setaf 2)
 RESET  := $(shell tput -Txterm sgr0)
 
 PROJECT_NAME := squares
+DIST_DIR     := dist
 .DEFAULT_GOAL := help
 
 # =============================================================================
@@ -65,16 +66,46 @@ sync: ## Sync live ESPN scores against local server
 # =============================================================================
 
 .PHONY: build
-build: ## Build Lambda binary (linux/arm64)
-	@echo "$(GREEN)Building Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -o bootstrap ./cmd/server
-	@echo "$(GREEN)Built bootstrap binary for Lambda$(RESET)"
+build: ## Build server Lambda binary (linux/arm64) → dist/
+	@mkdir -p $(DIST_DIR)
+	@echo "$(GREEN)Building server Lambda binary...$(RESET)"
+	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap ./cmd/server
+	zip -j $(DIST_DIR)/bootstrap.zip $(DIST_DIR)/bootstrap
+	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap.zip$(RESET)"
 
 .PHONY: build-cron
-build-cron: ## Build Lambda binary for cron (linux/arm64)
+build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
+	@mkdir -p $(DIST_DIR)
 	@echo "$(GREEN)Building cron Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -o bootstrap-cron ./cmd/cron
-	@echo "$(GREEN)Built bootstrap-cron binary for Lambda$(RESET)"
+	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap-cron ./cmd/cron
+	zip -j $(DIST_DIR)/bootstrap-cron.zip $(DIST_DIR)/bootstrap-cron
+	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap-cron.zip$(RESET)"
+
+.PHONY: build-all
+build-all: build build-cron ## Build all Lambda binaries → dist/
+
+# =============================================================================
+# Infrastructure
+# =============================================================================
+
+.PHONY: tf-init
+tf-init: ## Initialize Terraform
+	terraform -chdir=infrastructure init
+
+.PHONY: tf-plan
+tf-plan: build-all ## Plan infrastructure changes
+	terraform -chdir=infrastructure plan
+
+.PHONY: tf-apply
+tf-apply: build-all ## Apply infrastructure changes
+	terraform -chdir=infrastructure apply
+
+.PHONY: tf-destroy
+tf-destroy: ## Destroy infrastructure (careful!)
+	terraform -chdir=infrastructure destroy
+
+.PHONY: deploy
+deploy: build-all tf-apply ## Build and deploy everything to AWS
 
 # =============================================================================
 # Quality
@@ -101,7 +132,7 @@ test-coverage: ## Run tests with coverage report
 
 .PHONY: clean
 clean: ## Remove build artifacts
-	rm -f bootstrap bootstrap-cron coverage.out
+	rm -rf $(DIST_DIR) coverage.out
 	@echo "$(GREEN)Cleaned build artifacts$(RESET)"
 
 # =============================================================================
