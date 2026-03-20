@@ -1,0 +1,31 @@
+{{if .HasAxes}}
+<table class="squares-grid">
+    <thead>
+        <tr>
+            <th class="corner">Home\Away</th>
+            {{range .ColAxis.Digits}}
+            <th>{{.}}</th>
+            {{end}}
+        </tr>
+    </thead>
+    <tbody>
+        {{$grid := .Grid}}
+        {{range $r, $_ := seq 10}}
+        <tr>
+            <th>{{index $.RowAxis.Digits $r}}</th>
+            {{range $c, $_ := seq 10}}
+            {{$cell := index (index $grid $r) $c}}
+            <td class="{{if $cell.IsWinner}}winner{{end}} {{if $cell.IsRocky}}rocky{{end}}">
+                <span class="owner">{{$cell.OwnerName}}</span>
+                {{if $cell.IsWinner}}
+                <span class="payout">${{printf "%.0f" $cell.Amount}}</span>
+                {{end}}
+            </td>
+            {{end}}
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p class="muted">Axes not assigned yet.</p>
+{{end}}

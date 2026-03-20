@@ -1,0 +1,220 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    margin-bottom: 5px;
+    color: #1a1a2e;
+}
+
+h2 {
+    margin-bottom: 10px;
+    color: #16213e;
+}
+
+.actions {
+    margin: 15px 0;
+}
+
+.btn {
+    background: #0f3460;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn:hover {
+    background: #16213e;
+}
+
+.dashboard {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.grid-section {
+    flex: 1;
+    overflow-x: auto;
+}
+
+.sidebar {
+    width: 320px;
+    flex-shrink: 0;
+}
+
+.squares-grid {
+    border-collapse: collapse;
+    font-size: 12px;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.squares-grid th,
+.squares-grid td {
+    border: 1px solid #ccc;
+    padding: 4px;
+    text-align: center;
+    min-width: 70px;
+    height: 55px;
+    vertical-align: middle;
+}
+
+.squares-grid thead th {
+    background: #0f3460;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.squares-grid tbody th {
+    background: #0f3460;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    min-width: 50px;
+}
+
+.squares-grid .corner {
+    background: #1a1a2e;
+    font-size: 10px;
+    min-width: 70px;
+}
+
+.squares-grid td {
+    background: white;
+    position: relative;
+}
+
+.squares-grid td .owner {
+    display: block;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.squares-grid td .payout {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #155724;
+}
+
+.squares-grid td.winner {
+    background: #d4edda;
+    border-color: #28a745;
+}
+
+.squares-grid td.rocky {
+    background: #cce5ff;
+    border-color: #007bff;
+}
+
+.squares-grid td.winner.rocky {
+    background: linear-gradient(135deg, #cce5ff 50%, #d4edda 50%);
+}
+
+.leaderboard {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.leaderboard th,
+.leaderboard td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.leaderboard thead th {
+    background: #f8f9fa;
+    font-weight: 700;
+}
+
+.leaderboard .rocky td {
+    background: #cce5ff;
+    font-weight: 600;
+}
+
+.games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.game {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-size: 13px;
+}
+
+.game .teams {
+    flex: 1;
+    font-weight: 500;
+}
+
+.game .score {
+    font-weight: 700;
+}
+
+.status-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.game.final .status-badge {
+    background: #d4edda;
+    color: #155724;
+}
+
+.game.in_progress .status-badge {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.game.scheduled .status-badge {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.muted {
+    color: #888;
+    font-style: italic;
+}
+
+@media (max-width: 900px) {
+    .dashboard {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+    }
+}

@@ -1,0 +1,24 @@
+{{if .Leaderboard}}
+<table class="leaderboard">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Wins</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $i, $e := .Leaderboard}}
+        <tr {{if eq $e.Name "Rocky"}}class="rocky"{{end}}>
+            <td>{{$i}}</td>
+            <td>{{$e.Name}}</td>
+            <td>{{$e.Wins}}</td>
+            <td>${{printf "%.2f" $e.Total}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p class="muted">No payouts yet.</p>
+{{end}}

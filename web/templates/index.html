@@ -1,0 +1,44 @@
+{{template "base" .}}
+{{define "content"}}
+<h1>{{.Pool.Name}}</h1>
+<p>Payout per game: ${{printf "%.2f" .Pool.PayoutAmount}}</p>
+
+<div class="actions">
+    <form method="POST" action="/pools/{{.Pool.ID}}/sync">
+        <button type="submit" class="btn">Sync ESPN Scores</button>
+    </form>
+</div>
+
+<div class="dashboard">
+    <div class="grid-section">
+        <h2>Squares Grid</h2>
+        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid" hx-trigger="load" hx-swap="innerHTML">
+            Loading grid...
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Leaderboard</h2>
+        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard" hx-trigger="load" hx-swap="innerHTML">
+            Loading leaderboard...
+        </div>
+
+        <h2>Games</h2>
+        <div class="games-list">
+            {{if .Games}}
+            {{range .Games}}
+            <div class="game {{.Status}}">
+                <span class="teams">{{.AwayTeam}} @ {{.HomeTeam}}</span>
+                {{if ne .Status "scheduled"}}
+                <span class="score">{{.AwayScore}} - {{.HomeScore}}</span>
+                {{end}}
+                <span class="status-badge">{{.Status}}</span>
+            </div>
+            {{end}}
+            {{else}}
+            <p class="muted">No games synced yet. Click "Sync ESPN Scores" to fetch games.</p>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
