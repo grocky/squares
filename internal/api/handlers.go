@@ -36,6 +36,9 @@ func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS) *H
 			return s
 		},
 		"printf": fmt.Sprintf,
+		"add": func(a, b int) int {
+			return a + b
+		},
 	}
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html"))
 	return &Handler{

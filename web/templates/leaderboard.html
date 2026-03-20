@@ -11,7 +11,7 @@
     <tbody>
         {{range $i, $e := .Leaderboard}}
         <tr {{if eq $e.Name "Rocky"}}class="rocky"{{end}}>
-            <td>{{$i}}</td>
+            <td>{{add $i 1}}</td>
             <td>{{$e.Name}}</td>
             <td>{{$e.Wins}}</td>
             <td>${{printf "%.2f" $e.Total}}</td>
