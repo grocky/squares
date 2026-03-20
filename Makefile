@@ -1,13 +1,97 @@
-.PHONY: run build seed sync
+GREEN  := $(shell tput -Txterm setaf 2)
+RESET  := $(shell tput -Txterm sgr0)
 
-run:
-	go run ./cmd/server
+PROJECT_NAME := squares
+.DEFAULT_GOAL := help
 
-build:
-	GOOS=linux GOARCH=arm64 go build -o bootstrap ./cmd/server
+# =============================================================================
+# Local Dev Environment
+# =============================================================================
 
-seed:
-	go run ./cmd/seed
+LOCAL_ENV := AWS_REGION=us-east-1 \
+             AWS_ACCESS_KEY_ID=local \
+             AWS_SECRET_ACCESS_KEY=local \
+             AWS_ENDPOINT_URL=http://localhost:8000 \
+             DYNAMODB_TABLE=squares
 
-sync:
+.PHONY: dev
+dev: ## Start DynamoDB Local via Docker
+	docker compose up -d
+	@echo "Waiting for DynamoDB Local to be ready..."
+	@until curl -s http://localhost:8000 > /dev/null 2>&1; do sleep 1; done
+	@echo "$(GREEN)DynamoDB Local is up at http://localhost:8000$(RESET)"
+
+.PHONY: dev-down
+dev-down: ## Stop DynamoDB Local
+	docker compose down
+
+.PHONY: dev-setup
+dev-setup: dev create-table seed ## Start DynamoDB Local, create table, and seed data
+
+.PHONY: create-table
+create-table: ## Create the DynamoDB table in local environment
+	@echo "$(GREEN)Creating DynamoDB table...$(RESET)"
+	$(LOCAL_ENV) ./scripts/create-table.sh
+
+# =============================================================================
+# Application
+# =============================================================================
+
+.PHONY: run
+run: ## Run the server locally against DynamoDB Local
+	$(LOCAL_ENV) go run ./cmd/server
+
+.PHONY: seed
+seed: ## Seed local DynamoDB with sample data
+	@echo "$(GREEN)Seeding local DynamoDB...$(RESET)"
+	$(LOCAL_ENV) go run ./cmd/seed
+
+.PHONY: sync
+sync: ## Sync live ESPN scores against local server
 	curl -X POST http://localhost:8080/pools/main/sync
+
+# =============================================================================
+# Build
+# =============================================================================
+
+.PHONY: build
+build: ## Build Lambda binary (linux/arm64)
+	@echo "$(GREEN)Building Lambda binary...$(RESET)"
+	GOOS=linux GOARCH=arm64 go build -o bootstrap ./cmd/server
+	@echo "$(GREEN)Built bootstrap binary for Lambda$(RESET)"
+
+# =============================================================================
+# Quality
+# =============================================================================
+
+.PHONY: fmt
+fmt: ## Format Go code
+	go fmt ./...
+
+.PHONY: vet
+vet: fmt ## Vet Go code
+	go vet ./...
+
+.PHONY: test
+test: ## Run all tests
+	@echo "$(GREEN)Running tests...$(RESET)"
+	go test ./...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage report
+	@echo "$(GREEN)Running tests with coverage...$(RESET)"
+	go test ./... -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+
+.PHONY: clean
+clean: ## Remove build artifacts
+	rm -f bootstrap coverage.out
+	@echo "$(GREEN)Cleaned build artifacts$(RESET)"
+
+# =============================================================================
+# Help
+# =============================================================================
+
+.PHONY: help
+help: ## Print this help message
+	@awk -F ':|##' '/^[^\t].+?:.*?##/ { printf "${GREEN}%-20s${RESET}%s\n", $$1, $$NF }' $(MAKEFILE_LIST) | sort
