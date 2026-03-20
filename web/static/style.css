@@ -29,6 +29,9 @@ h2 {
 
 .actions {
     margin: 15px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 .btn {
@@ -208,6 +211,63 @@ h2 {
 .muted {
     color: #888;
     font-style: italic;
+}
+
+.btn-edit {
+    background: #e2a03f;
+}
+
+.btn-edit:hover {
+    background: #c88a2e;
+}
+
+.btn-sm {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.edit-inline {
+    border: 2px solid #e2a03f;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: inherit;
+    background: #fffef5;
+}
+
+.edit-title {
+    font-size: 24px;
+    font-weight: bold;
+    width: 100%;
+}
+
+.edit-payout {
+    width: 100px;
+}
+
+.edit-axis {
+    width: 32px;
+    padding: 2px;
+    text-align: center;
+    border: 2px solid #e2a03f;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fffef5;
+}
+
+.edit-square {
+    width: 100%;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+
+.squares-grid td.editable {
+    cursor: pointer;
+}
+
+.squares-grid td.editable:hover {
+    background: #fffef5;
+    outline: 2px solid #e2a03f;
 }
 
 @media (max-width: 900px) {

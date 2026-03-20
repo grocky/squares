@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -58,6 +59,11 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Post("/pools/{poolID}/squares", h.handleAssignSquares)
 	r.Post("/pools/{poolID}/axes", h.handleAssignAxes)
 
+	r.Put("/pools/{poolID}", h.handleUpdatePool)
+	r.Put("/pools/{poolID}/squares/{row}/{col}", h.handleUpdateSquare)
+	r.Put("/pools/{poolID}/axis/{type}", h.handleUpdateAxis)
+	r.Get("/pools/{poolID}/header", h.handleHeader)
+
 	return r
 }
 
@@ -105,6 +111,7 @@ type dashboardData struct {
 	Leaderboard []leaderEntry
 	Games       []models.Game
 	HasAxes     bool
+	Editing     bool
 }
 
 type leaderEntry struct {
@@ -121,6 +128,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
 		return
 	}
+	data.Editing = r.URL.Query().Get("editing") == "true"
 	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
@@ -133,7 +141,24 @@ func (h *Handler) handleGrid(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
 	}
+	data.Editing = r.URL.Query().Get("editing") == "true"
 	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
+func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	pool, err := h.repo.GetPool(r.Context(), poolID)
+	if err != nil {
+		http.Error(w, "pool not found", http.StatusNotFound)
+		return
+	}
+	data := dashboardData{
+		Pool:    pool,
+		Editing: r.URL.Query().Get("editing") == "true",
+	}
+	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
 }
@@ -293,6 +318,127 @@ func (h *Handler) handleAssignAxes(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, `{"ok":true}`)
+}
+
+func (h *Handler) handleUpdatePool(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	ctx := r.Context()
+
+	pool, err := h.repo.GetPool(ctx, poolID)
+	if err != nil {
+		http.Error(w, "pool not found", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		Name         *string  `json:"name"`
+		PayoutAmount *float64 `json:"payoutAmount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name != nil {
+		pool.Name = *req.Name
+	}
+	if req.PayoutAmount != nil {
+		pool.PayoutAmount = *req.PayoutAmount
+	}
+
+	if err := h.repo.PutPool(ctx, pool); err != nil {
+		http.Error(w, "failed to update pool", http.StatusInternalServerError)
+		return
+	}
+
+	data := dashboardData{Pool: pool, Editing: true}
+	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
+func (h *Handler) handleUpdateSquare(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	row, err := strconv.Atoi(chi.URLParam(r, "row"))
+	if err != nil || row < 0 || row > 9 {
+		http.Error(w, "invalid row", http.StatusBadRequest)
+		return
+	}
+	col, err := strconv.Atoi(chi.URLParam(r, "col"))
+	if err != nil || col < 0 || col > 9 {
+		http.Error(w, "invalid col", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		OwnerName string `json:"ownerName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	sq := models.Square{
+		PoolID:    poolID,
+		Row:       row,
+		Col:       col,
+		OwnerName: req.OwnerName,
+	}
+	if err := h.repo.PutSquare(r.Context(), sq); err != nil {
+		http.Error(w, "failed to update square", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := h.buildDashboardData(r.Context(), poolID)
+	if err != nil {
+		http.Error(w, "failed to load grid", http.StatusInternalServerError)
+		return
+	}
+	data.Editing = true
+	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
+func (h *Handler) handleUpdateAxis(w http.ResponseWriter, r *http.Request) {
+	poolID := chi.URLParam(r, "poolID")
+	axisType := chi.URLParam(r, "type")
+	if axisType != "row" && axisType != "col" {
+		http.Error(w, "type must be 'row' or 'col'", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Digits []int `json:"digits"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if len(req.Digits) != 10 {
+		http.Error(w, "digits must be an array of 10 values", http.StatusBadRequest)
+		return
+	}
+
+	axis := models.Axis{
+		PoolID: poolID,
+		Type:   axisType,
+		Digits: req.Digits,
+	}
+	if err := h.repo.PutAxis(r.Context(), axis); err != nil {
+		http.Error(w, "failed to update axis", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := h.buildDashboardData(r.Context(), poolID)
+	if err != nil {
+		http.Error(w, "failed to load grid", http.StatusInternalServerError)
+		return
+	}
+	data.Editing = true
+	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
+		log.Printf("template error: %v", err)
+	}
 }
 
 func (h *Handler) buildDashboardData(ctx context.Context, poolID string) (dashboardData, error) {

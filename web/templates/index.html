@@ -1,18 +1,41 @@
 {{template "base" .}}
+
+{{define "header"}}
+<div id="header">
+    {{if .Editing}}
+    <h1>
+        <input type="text" class="edit-inline edit-title" value="{{.Pool.Name}}"
+               onchange="updatePool('name', this.value)">
+    </h1>
+    <p>Payout per game: $
+        <input type="number" class="edit-inline edit-payout" value="{{printf "%.2f" .Pool.PayoutAmount}}" step="0.01"
+               onchange="updatePool('payoutAmount', parseFloat(this.value))">
+    </p>
+    {{else}}
+    <h1>{{.Pool.Name}}</h1>
+    <p>Payout per game: ${{printf "%.2f" .Pool.PayoutAmount}}</p>
+    {{end}}
+</div>
+{{end}}
+
 {{define "content"}}
-<h1>{{.Pool.Name}}</h1>
-<p>Payout per game: ${{printf "%.2f" .Pool.PayoutAmount}}</p>
+<div id="page" data-editing="{{.Editing}}" data-pool-id="{{.Pool.ID}}">
+
+{{template "header" .}}
 
 <div class="actions">
     <form method="POST" action="/pools/{{.Pool.ID}}/sync">
         <button type="submit" class="btn">Sync ESPN Scores</button>
     </form>
+    <button class="btn btn-edit" onclick="toggleEditMode()">
+        {{if .Editing}}Done Editing{{else}}Edit{{end}}
+    </button>
 </div>
 
 <div class="dashboard">
     <div class="grid-section">
         <h2>Squares Grid</h2>
-        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid" hx-trigger="load" hx-swap="innerHTML">
+        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid{{if .Editing}}?editing=true{{end}}" hx-trigger="load" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
@@ -41,4 +64,26 @@
         </div>
     </div>
 </div>
+</div>
+
+<script>
+function toggleEditMode() {
+    var page = document.getElementById('page');
+    var editing = page.dataset.editing === 'true';
+    var poolId = page.dataset.poolId;
+    window.location.href = '/pools/' + poolId + (editing ? '' : '?editing=true');
+}
+
+function updatePool(field, value) {
+    var poolId = document.getElementById('page').dataset.poolId;
+    var body = {};
+    body[field] = value;
+    fetch('/pools/' + poolId, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(function(r) { return r.text(); })
+      .then(function(html) { document.getElementById('header').outerHTML = html; });
+}
+</script>
 {{end}}
