@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grocky/squares/internal/dynamo"
@@ -34,18 +35,19 @@ type event struct {
 	ID           string        `json:"id"`
 	Name         string        `json:"name"`
 	Competitions []competition `json:"competitions"`
-	Season       struct {
-		Slug string `json:"slug"`
-	} `json:"season"`
 }
 
 type competition struct {
 	Competitors []competitor `json:"competitors"`
 	Status      struct {
 		Type struct {
-			Name string `json:"name"`
+			Name  string `json:"name"`
+			State string `json:"state"` // "pre", "in", "post"
 		} `json:"type"`
 	} `json:"status"`
+	Notes []struct {
+		Headline string `json:"headline"`
+	} `json:"notes"`
 }
 
 type competitor struct {
@@ -56,14 +58,38 @@ type competitor struct {
 	} `json:"team"`
 }
 
-func normalizeStatus(espnStatus string) string {
-	switch espnStatus {
-	case "STATUS_FINAL":
+// normalizeStatus uses the ESPN state field which is more stable than name.
+// "pre" → scheduled, "in" → in_progress, "post" → final
+func normalizeStatus(state string) string {
+	switch state {
+	case "post":
 		return "final"
-	case "STATUS_IN_PROGRESS":
+	case "in":
 		return "in_progress"
 	default:
 		return "scheduled"
+	}
+}
+
+// roundFromHeadline parses "NCAA Men's Basketball Championship - Region - Nth Round"
+// or "NCAA Men's Basketball Championship - Final Four" etc.
+func roundFromHeadline(headline string) int {
+	h := strings.ToLower(headline)
+	switch {
+	case strings.Contains(h, "1st round") || strings.Contains(h, "first round"):
+		return 1
+	case strings.Contains(h, "2nd round") || strings.Contains(h, "second round"):
+		return 2
+	case strings.Contains(h, "sweet 16") || strings.Contains(h, "sweet sixteen"):
+		return 3
+	case strings.Contains(h, "elite 8") || strings.Contains(h, "elite eight"):
+		return 4
+	case strings.Contains(h, "final four"):
+		return 5
+	case strings.Contains(h, "national championship") || strings.Contains(h, "championship game"):
+		return 6
+	default:
+		return 1 // default to round 1 if unknown
 	}
 }
 
@@ -93,9 +119,19 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 			continue
 		}
 		comp := ev.Competitions[0]
+
+		status := normalizeStatus(comp.Status.Type.State)
+
+		// Parse round from notes headline
+		roundNum := 1
+		if len(comp.Notes) > 0 {
+			roundNum = roundFromHeadline(comp.Notes[0].Headline)
+		}
+
 		g := models.Game{
 			EspnID:   ev.ID,
-			Status:   normalizeStatus(comp.Status.Type.Name),
+			Status:   status,
+			RoundNum: roundNum,
 			SyncedAt: time.Now().UTC(),
 		}
 
@@ -130,15 +166,38 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 }
 
 func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, error) {
-	games, err := c.FetchGames(ctx)
+	freshGames, err := c.FetchGames(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for i := range games {
-		games[i].PoolID = poolID
-		if err := c.repo.PutGame(ctx, games[i]); err != nil {
-			return nil, fmt.Errorf("upserting game %s: %w", games[i].EspnID, err)
+
+	// Load existing games so we never regress a status
+	existingGames, _ := c.repo.GetAllGames(ctx, poolID)
+	existingMap := make(map[string]models.Game)
+	for _, g := range existingGames {
+		existingMap[g.EspnID] = g
+	}
+
+	statusRank := map[string]int{"scheduled": 0, "in_progress": 1, "final": 2}
+
+	for i := range freshGames {
+		g := &freshGames[i]
+		g.PoolID = poolID
+
+		// Never regress status (e.g. final → in_progress or scheduled)
+		if existing, ok := existingMap[g.EspnID]; ok {
+			if statusRank[existing.Status] > statusRank[g.Status] {
+				g.Status = existing.Status
+			}
+			// Preserve round number if ESPN stops returning it
+			if g.RoundNum == 0 && existing.RoundNum > 0 {
+				g.RoundNum = existing.RoundNum
+			}
+		}
+
+		if err := c.repo.PutGame(ctx, *g); err != nil {
+			return nil, fmt.Errorf("upserting game %s: %w", g.EspnID, err)
 		}
 	}
-	return games, nil
+	return freshGames, nil
 }
