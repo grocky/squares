@@ -39,7 +39,12 @@
 
 <div class="flex flex-col lg:flex-row gap-8 mt-0">
     <div class="flex-1 overflow-x-auto">
-        <h2 class="text-lg font-bold text-gray-800 mb-2">Squares Grid</h2>
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-bold text-gray-800">Squares Grid</h2>
+            <input id="owner-search" type="search" placeholder="Search owner..." autocomplete="off"
+                   class="text-sm border border-gray-300 rounded px-3 py-1 w-48 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                   oninput="highlightOwner(this.value)">
+        </div>
         <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading grid...
         </div>
@@ -79,6 +84,28 @@ function selectRoundTab(btn, roundNum) {
 }
 
 // SSE live updates
+function highlightOwner(query) {
+    var q = query.trim().toLowerCase();
+    // Grid cells
+    document.querySelectorAll('#grid td[data-owner]').forEach(function(td) {
+        var owner = td.dataset.owner.toLowerCase();
+        td.classList.toggle('highlighted', q.length > 0 && owner.includes(q));
+        td.classList.toggle('dimmed', q.length > 0 && !owner.includes(q));
+    });
+    // Leaderboard rows
+    document.querySelectorAll('#leaderboard tr[data-name]').forEach(function(tr) {
+        var name = tr.dataset.name.toLowerCase();
+        tr.classList.toggle('highlighted', q.length > 0 && name.includes(q));
+        tr.classList.toggle('dimmed', q.length > 0 && !name.includes(q));
+    });
+}
+
+// Re-apply search highlight after HTMX swaps grid/leaderboard content
+document.addEventListener('htmx:afterSwap', function(e) {
+    var search = document.getElementById('owner-search');
+    if (search && search.value) highlightOwner(search.value);
+});
+
 var poolId = document.getElementById('page').dataset.poolId;
 var evtSource = new EventSource('/pools/' + poolId + '/events');
 evtSource.addEventListener('sync', function(e) {

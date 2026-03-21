@@ -130,7 +130,7 @@ type gridCell struct {
 	OwnerName string
 	IsWinner  bool
 	Amount    float64
-	IsRocky   bool
+
 }
 
 type roundAxisPair struct {
@@ -645,7 +645,7 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 		if sq.Row >= 0 && sq.Row < 10 && sq.Col >= 0 && sq.Col < 10 {
 			data.Grid[sq.Row][sq.Col] = gridCell{
 				OwnerName: sq.OwnerName,
-				IsRocky:   strings.Contains(sq.OwnerName, "Rocky"),
+
 			}
 		}
 	}

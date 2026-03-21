@@ -82,19 +82,27 @@
     border-color: #28a745;
 }
 
-.squares-grid td.rocky {
-    background: #cce5ff;
+/* Owner search highlight */
+.squares-grid td.highlighted {
+    background: #cce5ff !important;
     border-color: #007bff;
 }
 
-.squares-grid td.winner.rocky {
-    background: linear-gradient(135deg, #cce5ff 50%, #d4edda 50%);
+.squares-grid td.winner.highlighted {
+    background: linear-gradient(135deg, #cce5ff 50%, #d4edda 50%) !important;
 }
 
-/* Leaderboard rocky highlight */
-.leaderboard .rocky td {
+.squares-grid td.dimmed {
+    opacity: 0.3;
+}
+
+tr.highlighted td {
     background: #cce5ff;
     font-weight: 600;
+}
+
+tr.dimmed td {
+    opacity: 0.4;
 }
 
 /* Edit inputs (admin) */

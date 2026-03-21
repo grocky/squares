@@ -15,7 +15,7 @@
             <th>{{index $.LoserAxis.Digits $r}}</th>
             {{range $c, $_ := seq 10}}
             {{$cell := index (index $grid $r) $c}}
-            <td class="{{if $cell.IsWinner}}winner{{end}} {{if $cell.IsRocky}}rocky{{end}}">
+            <td class="{{if $cell.IsWinner}}winner{{end}}" data-owner="{{$cell.OwnerName}}">
                 <span class="owner">{{$cell.OwnerName}}</span>
                 {{if $cell.IsWinner}}
                 <span class="payout">${{printf "%.0f" $cell.Amount}}</span>

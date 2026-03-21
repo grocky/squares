@@ -10,7 +10,7 @@
     </thead>
     <tbody>
         {{range $i, $e := .Leaderboard}}
-        <tr class="border-b border-gray-100 {{if contains $e.Name "Rocky"}}rocky{{end}}">
+        <tr class="border-b border-gray-100" data-name="{{$e.Name}}">
             <td class="py-2 px-3">{{add $i 1}}</td>
             <td class="py-2 px-3 font-medium">{{$e.Name}}</td>
             <td class="py-2 px-3">{{$e.Wins}}</td>
