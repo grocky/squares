@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -44,10 +43,8 @@ func main() {
 	mux.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	if isLambda() {
-		adapter := chiadapter.New(mux)
-		lambda.Start(func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-			return adapter.ProxyWithContext(ctx, req)
-		})
+		adapter := chiadapter.NewV2(mux)
+		lambda.Start(adapter.ProxyWithContextV2)
 	} else {
 		port := os.Getenv("PORT")
 		if port == "" {
