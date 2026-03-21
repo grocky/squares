@@ -52,6 +52,11 @@ seed: ## Seed local DynamoDB with sample data
 	@echo "$(GREEN)Seeding local DynamoDB...$(RESET)"
 	$(LOCAL_ENV) go run ./cmd/seed
 
+.PHONY: seed-prod
+seed-prod: ## Seed production DynamoDB from config/seed.json (uses AWS credentials from environment)
+	@echo "$(GREEN)Seeding production DynamoDB...$(RESET)"
+	AWS_REGION=us-east-1 DYNAMODB_TABLE=squares go run ./cmd/seed
+
 .PHONY: dump-seed
 dump-seed: ## Snapshot current DynamoDB state into cmd/seed/main.go
 	@echo "$(GREEN)Dumping current state to seed file...$(RESET)"

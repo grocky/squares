@@ -37,7 +37,6 @@ resource "aws_lambda_function" "server" {
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.squares.name
-      AWS_REGION     = data.aws_region.current.id
       PORT           = "8080"
     }
   }
@@ -78,7 +77,6 @@ resource "aws_lambda_function" "cron" {
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.squares.name
-      AWS_REGION     = data.aws_region.current.id
       POOL_ID        = var.pool_id
       SERVER_URL     = "https://${var.domain_name}"
     }
