@@ -94,7 +94,7 @@ func roundFromHeadline(headline string) int {
 	case strings.Contains(h, "national championship") || strings.Contains(h, "championship game"):
 		return 6
 	default:
-		return 1 // default to round 1 if unknown
+		return 0 // unknown; caller should preserve existing round number
 	}
 }
 
@@ -168,8 +168,8 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 
 		status := normalizeStatus(comp.Status.Type.State)
 
-		// Parse round from notes headline
-		roundNum := 1
+		// Parse round from notes headline; 0 means unknown
+		roundNum := 0
 		if len(comp.Notes) > 0 {
 			roundNum = roundFromHeadline(comp.Notes[0].Headline)
 		}

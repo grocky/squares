@@ -743,9 +743,9 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 		}
 	}
 
-	// Build leaderboard
+	// Build leaderboard from all rounds (not filtered by round)
 	totals := make(map[string]*leaderEntry)
-	for _, p := range payouts {
+	for _, p := range allPayouts {
 		e, ok := totals[p.OwnerName]
 		if !ok {
 			e = &leaderEntry{Name: p.OwnerName}
