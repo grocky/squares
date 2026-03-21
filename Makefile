@@ -76,15 +76,17 @@ build: ## Build server Lambda binary (linux/arm64) → dist/
 	@mkdir -p $(DIST_DIR)
 	@echo "$(GREEN)Building server Lambda binary...$(RESET)"
 	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap ./cmd/server
-	zip -j $(DIST_DIR)/bootstrap.zip $(DIST_DIR)/bootstrap
+	rm -f $(DIST_DIR)/bootstrap.zip
+	cd $(DIST_DIR) && zip bootstrap.zip bootstrap && rm bootstrap
 	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap.zip$(RESET)"
 
 .PHONY: build-cron
 build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
 	@mkdir -p $(DIST_DIR)
 	@echo "$(GREEN)Building cron Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap-cron ./cmd/cron
-	zip -j $(DIST_DIR)/bootstrap-cron.zip $(DIST_DIR)/bootstrap-cron
+	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap ./cmd/cron
+	rm -f $(DIST_DIR)/bootstrap-cron.zip
+	cd $(DIST_DIR) && zip bootstrap-cron.zip bootstrap && rm bootstrap
 	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap-cron.zip$(RESET)"
 
 .PHONY: build-all
