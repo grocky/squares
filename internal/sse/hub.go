@@ -45,6 +45,7 @@ func (h *Hub) Handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
+			log.Printf("SSE streaming unsupported for client ip=%s", r.RemoteAddr)
 			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 			return
 		}
