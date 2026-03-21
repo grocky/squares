@@ -5,7 +5,18 @@ import (
 	"runtime/debug"
 )
 
+// commit is injected at build time via:
+//
+//	go build -ldflags "-X github.com/grocky/squares/internal/version.commit=<sha>"
+var commit string
+
 func Get() string {
+	// Prefer the ldflag-injected value (reliable in Docker/CI builds)
+	if commit != "" {
+		return commit
+	}
+
+	// Fall back to VCS info embedded by the Go toolchain (works for local builds)
 	var revision string
 	var modified bool
 

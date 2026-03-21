@@ -71,11 +71,14 @@ sync: ## Sync live ESPN scores against local server
 # Build
 # =============================================================================
 
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION_LDFLAG := -X github.com/grocky/squares/internal/version.commit=$(GIT_COMMIT)
+
 .PHONY: build
 build: ## Build server Lambda binary (linux/arm64) → dist/
 	@mkdir -p $(DIST_DIR)
 	@echo "$(GREEN)Building server Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap ./cmd/server
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(VERSION_LDFLAG)" -o $(DIST_DIR)/bootstrap ./cmd/server
 	rm -f $(DIST_DIR)/bootstrap.zip
 	cd $(DIST_DIR) && zip bootstrap.zip bootstrap && rm bootstrap
 	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap.zip$(RESET)"
@@ -84,7 +87,7 @@ build: ## Build server Lambda binary (linux/arm64) → dist/
 build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
 	@mkdir -p $(DIST_DIR)
 	@echo "$(GREEN)Building cron Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -o $(DIST_DIR)/bootstrap ./cmd/cron
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(VERSION_LDFLAG)" -o $(DIST_DIR)/bootstrap ./cmd/cron
 	rm -f $(DIST_DIR)/bootstrap-cron.zip
 	cd $(DIST_DIR) && zip bootstrap-cron.zip bootstrap && rm bootstrap
 	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap-cron.zip$(RESET)"
