@@ -93,6 +93,38 @@ build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
 build-all: build build-cron ## Build all Lambda binaries → dist/
 
 # =============================================================================
+# Docker / ECS
+# =============================================================================
+
+AWS_REGION ?= us-east-1
+AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null)
+ECR_REGISTRY := $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+ECR_REPO ?= $(ECR_REGISTRY)/squares-server
+
+.PHONY: docker-build
+docker-build: ## Build Docker image for the server
+	@echo "$(GREEN)Building Docker image...$(RESET)"
+	docker build -t squares-server .
+
+.PHONY: docker-push
+docker-push: docker-build ## Build and push Docker image to ECR
+	@echo "$(GREEN)Pushing to ECR: $(ECR_REPO)...$(RESET)"
+	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REGISTRY)
+	docker tag squares-server:latest $(ECR_REPO):latest
+	docker push $(ECR_REPO):latest
+	@echo "$(GREEN)Pushed $(ECR_REPO):latest$(RESET)"
+
+.PHONY: ecs-deploy
+ecs-deploy: docker-push ## Push image and force ECS service redeploy
+	@echo "$(GREEN)Forcing ECS service redeploy...$(RESET)"
+	aws ecs update-service --cluster squares --service squares-server --force-new-deployment --region $(AWS_REGION) > /dev/null
+	@echo "$(GREEN)ECS redeploy triggered$(RESET)"
+
+.PHONY: invoke-cron
+invoke-cron: ## Manually invoke the score sync cron Lambda
+	aws lambda invoke --function-name squares-cron --region $(AWS_REGION) /dev/stdout
+
+# =============================================================================
 # Infrastructure
 # =============================================================================
 
@@ -113,7 +145,7 @@ tf-destroy: ## Destroy infrastructure (careful!)
 	terraform -chdir=infrastructure destroy
 
 .PHONY: deploy
-deploy: build-all tf-apply ## Build and deploy everything to AWS
+deploy: build-cron tf-apply docker-push ecs-deploy ## Full deploy: cron Lambda + Docker image + ECS redeploy
 
 # =============================================================================
 # Quality

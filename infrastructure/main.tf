@@ -70,3 +70,8 @@ data "aws_acm_certificate" "wildcard" {
 data "aws_route53_zone" "root" {
   name = "rockygray.com."
 }
+
+# SSM parameters
+data "aws_ssm_parameter" "admin_token" {
+  name = "/squares/admin-token"
+}

@@ -67,6 +67,10 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Use(RecoveryMiddleware)
 	r.Use(LoggingMiddleware)
 
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "ok")
+	})
 	r.Get("/", h.handleIndex)
 	r.Post("/pools", h.handleCreatePool)
 	r.Get("/pools/{poolID}", h.handlePoolDashboard)

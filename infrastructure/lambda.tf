@@ -1,73 +1,14 @@
 # =============================================================================
-# SSM Parameters
-# =============================================================================
-
-data "aws_ssm_parameter" "admin_token" {
-  name = "/squares/admin-token"
-}
-
-# =============================================================================
 # CloudWatch Log Groups
 # =============================================================================
-
-resource "aws_cloudwatch_log_group" "server" {
-  name              = "/aws/lambda/squares-server"
-  retention_in_days = 14
-}
 
 resource "aws_cloudwatch_log_group" "cron" {
   name              = "/aws/lambda/squares-cron"
   retention_in_days = 14
 }
 
-resource "aws_cloudwatch_log_group" "api_gateway" {
-  name              = "/aws/apigateway/squares"
-  retention_in_days = 14
-}
-
 # =============================================================================
-# Server Lambda (HTTP handler)
-# =============================================================================
-
-resource "aws_lambda_function" "server" {
-  function_name = "squares-server"
-  role          = aws_iam_role.lambda.arn
-  handler       = "bootstrap"
-  runtime       = "provided.al2023"
-  architectures = ["arm64"]
-
-  filename         = "${path.module}/../dist/bootstrap.zip"
-  source_code_hash = filebase64sha256("${path.module}/../dist/bootstrap.zip")
-
-  memory_size = 256
-  timeout     = 30
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.squares.name
-      PORT           = "8080"
-      ADMIN_TOKEN    = data.aws_ssm_parameter.admin_token.value
-    }
-  }
-
-  tags = {
-    Name        = "squares-server"
-    Application = "squares"
-  }
-
-  depends_on = [aws_cloudwatch_log_group.server]
-}
-
-resource "aws_lambda_permission" "api_gateway" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.server.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.server.execution_arn}/*/*"
-}
-
-# =============================================================================
-# Cron Lambda (score sync)
+# Cron Lambda (score sync) — stateless, no SSE needed
 # =============================================================================
 
 resource "aws_lambda_function" "cron" {

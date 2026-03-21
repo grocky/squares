@@ -1,7 +1,8 @@
 # =============================================================================
-# IAM — Lambda execution role (shared by server + cron)
+# IAM — shared DynamoDB policy (used by cron Lambda + ECS task)
 # =============================================================================
 
+# Lambda execution role (cron only)
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -21,13 +22,12 @@ resource "aws_iam_role" "lambda" {
   }
 }
 
-# Basic Lambda execution (CloudWatch logs)
 resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# DynamoDB access
+# DynamoDB policy (shared)
 data "aws_iam_policy_document" "dynamodb" {
   statement {
     actions = [
@@ -38,9 +38,7 @@ data "aws_iam_policy_document" "dynamodb" {
       "dynamodb:Query",
       "dynamodb:Scan",
     ]
-    resources = [
-      aws_dynamodb_table.squares.arn,
-    ]
+    resources = [aws_dynamodb_table.squares.arn]
   }
 }
 
@@ -49,7 +47,7 @@ resource "aws_iam_policy" "dynamodb" {
   policy = data.aws_iam_policy_document.dynamodb.json
 }
 
-resource "aws_iam_role_policy_attachment" "dynamodb" {
+resource "aws_iam_role_policy_attachment" "lambda_dynamodb" {
   role       = aws_iam_role.lambda.name
   policy_arn = aws_iam_policy.dynamodb.arn
 }

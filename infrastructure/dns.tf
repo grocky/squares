@@ -1,5 +1,5 @@
 # =============================================================================
-# DNS — squares.rockygray.com → API Gateway custom domain
+# DNS — squares.rockygray.com → ALB
 # =============================================================================
 
 resource "aws_route53_record" "squares" {
@@ -8,8 +8,8 @@ resource "aws_route53_record" "squares" {
   type    = "A"
 
   alias {
-    name                   = aws_apigatewayv2_domain_name.squares.domain_name_configuration[0].target_domain_name
-    zone_id                = aws_apigatewayv2_domain_name.squares.domain_name_configuration[0].hosted_zone_id
-    evaluate_target_health = false
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
   }
 }
