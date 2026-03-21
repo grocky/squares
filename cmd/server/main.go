@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -64,8 +67,42 @@ func main() {
 		if port == "" {
 			port = "8080"
 		}
-		log.Printf("listening on :%s", port)
-		log.Fatal(http.ListenAndServe(":"+port, mux))
+
+		srv := &http.Server{
+			Addr:    ":" + port,
+			Handler: mux,
+		}
+
+		// Start server in background
+		go func() {
+			log.Printf("listening on :%s", port)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("server error: %v", err)
+			}
+		}()
+
+		// Wait for SIGTERM or SIGINT (ECS sends SIGTERM on task stop)
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+		sig := <-quit
+		log.Printf("received signal %s — shutting down gracefully", sig)
+
+		// Notify SSE clients to reconnect quickly before we stop accepting
+		// connections. This runs first so clients start reconnecting while
+		// the new task is still in the ALB warmup window.
+		hub.Shutdown()
+
+		// Give in-flight requests up to 25s to finish.
+		// ALB deregistration_delay is 30s, so the ALB stops sending new
+		// requests before ECS kills us; 25s leaves a 5s safety margin.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("graceful shutdown timed out: %v", err)
+		} else {
+			log.Println("server stopped cleanly")
+		}
 	}
 }
 

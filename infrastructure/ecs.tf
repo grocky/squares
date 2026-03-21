@@ -137,9 +137,15 @@ resource "aws_ecs_service" "server" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
-  # Rolling deploy with zero downtime
+  # Rolling deploy: bring up new task before stopping old one
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+
+  # Auto-rollback if the new task fails health checks
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
