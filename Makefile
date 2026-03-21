@@ -13,7 +13,8 @@ LOCAL_ENV := AWS_REGION=us-east-1 \
              AWS_ACCESS_KEY_ID=local \
              AWS_SECRET_ACCESS_KEY=local \
              AWS_ENDPOINT_URL=http://localhost:8000 \
-             DYNAMODB_TABLE=squares
+             DYNAMODB_TABLE=squares \
+             ADMIN_TOKEN=da76b49de385e373ed1b687d8fc8bcda114753fbf20d92f6
 
 .PHONY: dev
 dev: ## Start DynamoDB Local via Docker

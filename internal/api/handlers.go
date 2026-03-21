@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -84,10 +85,19 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Put("/pools/{poolID}/rounds/{roundNum}/config", h.handleUpdateRoundConfig)
 	r.Get("/pools/{poolID}/header", h.handleHeader)
 
-	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/admin/pools/main", http.StatusFound)
+	// Admin login/logout (no auth required)
+	r.Get("/admin/login", h.handleAdminLogin)
+	r.Post("/admin/login", h.handleAdminLoginPost)
+	r.Get("/admin/logout", h.handleAdminLogout)
+
+	// Admin area (auth required)
+	r.Group(func(r chi.Router) {
+		r.Use(AdminAuthMiddleware)
+		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/admin/pools/main", http.StatusFound)
+		})
+		r.Get("/admin/pools/{poolID}", h.handleAdminDashboard)
 	})
-	r.Get("/admin/pools/{poolID}", h.handleAdminDashboard)
 
 	return r
 }
@@ -153,15 +163,43 @@ type leaderEntry struct {
 
 func parseRoundFilter(r *http.Request) int {
 	v, err := strconv.Atoi(r.URL.Query().Get("round"))
-	if err != nil || v < 0 || v > 6 {
-		return 0
+	if err != nil || v < 1 || v > 6 {
+		return 0 // caller should substitute currentRound
 	}
 	return v
+}
+
+// currentRound returns the round number for the current view:
+// 1. Any round with games scheduled/played today
+// 2. The highest round that has at least one final or in_progress game
+// 3. Falls back to 1
+func currentRound(games []models.Game) int {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	// Prefer any round with games today
+	for _, g := range games {
+		if !g.StartTime.IsZero() && g.StartTime.UTC().Truncate(24*time.Hour).Equal(today) {
+			return g.RoundNum
+		}
+	}
+
+	// Fall back to highest round with active/completed games
+	latest := 1
+	for _, g := range games {
+		if (g.Status == "final" || g.Status == "in_progress") && g.RoundNum > latest {
+			latest = g.RoundNum
+		}
+	}
+	return latest
 }
 
 func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
 	roundFilter := parseRoundFilter(r)
+	if roundFilter == 0 {
+		allGames, _ := h.repo.GetAllGames(r.Context(), poolID)
+		roundFilter = currentRound(allGames)
+	}
 	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
 	if err != nil {
 		log.Printf("error building dashboard: %v", err)
@@ -185,6 +223,48 @@ func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	if err := h.templates.ExecuteTemplate(w, "admin", data); err != nil {
 		log.Printf("template error: %v", err)
 	}
+}
+
+func (h *Handler) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	showError := r.URL.Query().Get("error") == "1"
+	if err := h.templates.ExecuteTemplate(w, "admin_login", showError); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
+func (h *Handler) handleAdminLoginPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	token := r.FormValue("token")
+	adminToken := os.Getenv("ADMIN_TOKEN")
+
+	if adminToken == "" || token != adminToken {
+		http.Redirect(w, r, "/admin/login?error=1", http.StatusFound)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     adminCookieName,
+		Value:    adminSessionValue(adminToken),
+		Path:     "/",
+		MaxAge:   adminCookieMaxAge,
+		HttpOnly: true,
+		Secure:   isHTTPS(r),
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.Redirect(w, r, "/admin/pools/main", http.StatusFound)
+}
+
+func (h *Handler) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   adminCookieName,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *Handler) handleGrid(w http.ResponseWriter, r *http.Request) {

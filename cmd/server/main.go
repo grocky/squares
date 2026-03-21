@@ -32,6 +32,10 @@ func main() {
 
 	hub := sse.NewHub()
 	s := syncer.New(repo, espnClient)
+	if os.Getenv("ADMIN_TOKEN") == "" {
+		log.Println("WARNING: ADMIN_TOKEN not set — admin area is unprotected (dev mode)")
+	}
+
 	handler := api.NewHandler(repo, espnClient, web.FS, s, hub)
 	mux := handler.Routes()
 

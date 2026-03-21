@@ -29,10 +29,6 @@
 {{template "header" .}}
 
 <div class="flex flex-wrap gap-1 mt-4" id="round-tabs">
-    <button class="round-tab{{if eq .RoundFilter 0}} active{{end}}"
-            hx-get="/pools/{{.Pool.ID}}/grid?round=0"
-            hx-target="#grid" hx-swap="innerHTML"
-            hx-on::after-request="selectRoundTab(this, 0)">All</button>
     {{range .RoundConfigs}}
     <button class="round-tab{{if eq $.RoundFilter .RoundNum}} active{{end}}"
             hx-get="/pools/{{$.Pool.ID}}/grid?round={{.RoundNum}}"

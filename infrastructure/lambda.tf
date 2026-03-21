@@ -1,4 +1,12 @@
 # =============================================================================
+# SSM Parameters
+# =============================================================================
+
+data "aws_ssm_parameter" "admin_token" {
+  name = "/squares/admin-token"
+}
+
+# =============================================================================
 # CloudWatch Log Groups
 # =============================================================================
 
@@ -38,6 +46,7 @@ resource "aws_lambda_function" "server" {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.squares.name
       PORT           = "8080"
+      ADMIN_TOKEN    = data.aws_ssm_parameter.admin_token.value
     }
   }
 
