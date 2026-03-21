@@ -19,6 +19,13 @@ func NewHub() *Hub {
 	}
 }
 
+// ClientCount returns the number of currently connected SSE clients.
+func (h *Hub) ClientCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 // Broadcast sends an event to all connected clients.
 func (h *Hub) Broadcast(event string) {
 	data := fmt.Sprintf("event: %s\ndata: {\"time\":\"%s\"}\n\n", event, time.Now().UTC().Format(time.RFC3339))
@@ -62,12 +69,12 @@ func (h *Hub) Handler() http.HandlerFunc {
 		fmt.Fprintf(w, "event: connected\ndata: {\"time\":\"%s\"}\n\n", time.Now().UTC().Format(time.RFC3339))
 		flusher.Flush()
 
-		log.Printf("SSE client connected")
+		log.Printf("SSE client connected (total=%d ip=%s)", h.ClientCount(), r.RemoteAddr)
 
 		for {
 			select {
 			case <-r.Context().Done():
-				log.Printf("SSE client disconnected")
+				log.Printf("SSE client disconnected (total=%d)", h.ClientCount())
 				return
 			case msg := <-ch:
 				fmt.Fprint(w, msg)

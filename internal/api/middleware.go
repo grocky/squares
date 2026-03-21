@@ -49,11 +49,42 @@ func isHTTPS(r *http.Request) bool {
 	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }
 
+// responseWriter wraps http.ResponseWriter to capture the status code.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
+		rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rw, r)
+		elapsed := time.Since(start)
+
+		// Always log all requests
+		log.Printf("%s %s %d %s", r.Method, r.URL.Path, rw.status, elapsed)
+
+		// Log visitor details for page views (skip static assets, SSE, API endpoints)
+		if r.Method == http.MethodGet &&
+			!strings.HasPrefix(r.URL.Path, "/static/") &&
+			!strings.HasSuffix(r.URL.Path, "/events") &&
+			!strings.HasSuffix(r.URL.Path, "/grid") &&
+			!strings.HasSuffix(r.URL.Path, "/leaderboard") &&
+			!strings.HasSuffix(r.URL.Path, "/games") {
+			ip := r.Header.Get("X-Forwarded-For")
+			if ip == "" {
+				ip = r.RemoteAddr
+			}
+			ua := r.Header.Get("User-Agent")
+			ref := r.Header.Get("Referer")
+			log.Printf("VISIT path=%s status=%d ip=%s ua=%q ref=%q", r.URL.Path, rw.status, ip, ua, ref)
+		}
 	})
 }
 
