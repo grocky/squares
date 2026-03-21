@@ -42,6 +42,11 @@ func main() {
 
 	appVersion := version.Get()
 
+	poolID := os.Getenv("POOL_ID")
+	if poolID == "" {
+		poolID = "main"
+	}
+
 	handlerConfig := api.HandlerConfig{
 		Version:    appVersion,
 		Repo:       repo,
@@ -75,6 +80,11 @@ func main() {
 			Handler: mux,
 		}
 
+		// Poll DynamoDB for sync state changes and broadcast SSE events.
+		// This replaces the Lambda → HTTP broadcast call — no egress needed.
+		watchCtx, watchCancel := context.WithCancel(ctx)
+		go sse.WatchSyncState(watchCtx, repo, hub, poolID, 15*time.Second)
+
 		// Start server in background
 		go func() {
 			log.Printf("listening on :%s, version: %s", port, appVersion)
@@ -88,6 +98,9 @@ func main() {
 		signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 		sig := <-quit
 		log.Printf("received signal %s — shutting down gracefully", sig)
+
+		// Stop the sync watcher before shutting down the server.
+		watchCancel()
 
 		// Notify SSE clients to reconnect quickly before we stop accepting
 		// connections. This runs first so clients start reconnecting while

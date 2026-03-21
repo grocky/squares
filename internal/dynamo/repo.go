@@ -395,6 +395,41 @@ func payoutFromItem(item map[string]types.AttributeValue, poolID string) models.
 	return p
 }
 
+// SyncState tracks the last time the cron wrote a sync, so the server can
+// detect changes via polling instead of requiring an inbound HTTP call.
+
+func (r *Repo) PutSyncState(ctx context.Context, poolID string, syncedAt time.Time) error {
+	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &r.tableName,
+		Item: map[string]types.AttributeValue{
+			"PK":       &types.AttributeValueMemberS{Value: "POOL#" + poolID},
+			"SK":       &types.AttributeValueMemberS{Value: "SYNC_STATE"},
+			"syncedAt": &types.AttributeValueMemberS{Value: syncedAt.UTC().Format(time.RFC3339)},
+		},
+	})
+	return err
+}
+
+func (r *Repo) GetSyncState(ctx context.Context, poolID string) (time.Time, error) {
+	out, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: &r.tableName,
+		Key: map[string]types.AttributeValue{
+			"PK": &types.AttributeValueMemberS{Value: "POOL#" + poolID},
+			"SK": &types.AttributeValueMemberS{Value: "SYNC_STATE"},
+		},
+	})
+	if err != nil {
+		return time.Time{}, err
+	}
+	if out.Item == nil {
+		return time.Time{}, nil
+	}
+	if v, ok := out.Item["syncedAt"].(*types.AttributeValueMemberS); ok {
+		return time.Parse(time.RFC3339, v.Value)
+	}
+	return time.Time{}, nil
+}
+
 func (r *Repo) PayoutExists(ctx context.Context, poolID, gameID string, row, col int) (bool, error) {
 	sk := fmt.Sprintf("PAYOUT#%s#%d%d", gameID, row, col)
 	out, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{

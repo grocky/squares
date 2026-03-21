@@ -96,6 +96,7 @@ resource "aws_ecs_task_definition" "server" {
     environment = [
       { name = "DYNAMODB_TABLE", value = aws_dynamodb_table.squares.name },
       { name = "PORT", value = "8080" },
+      { name = "POOL_ID", value = var.pool_id },
     ]
 
     secrets = [

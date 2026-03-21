@@ -3,6 +3,7 @@ package syncer
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/grocky/squares/internal/dynamo"
 	"github.com/grocky/squares/internal/espn"
@@ -101,6 +102,12 @@ func (s *Syncer) Sync(ctx context.Context, poolID string) error {
 		if err := s.repo.PutPayout(ctx, payout); err != nil {
 			log.Printf("error creating payout: %v", err)
 		}
+	}
+
+	// Write sync timestamp so the server can detect changes via polling
+	// instead of requiring an inbound HTTP call from the Lambda.
+	if err := s.repo.PutSyncState(ctx, poolID, time.Now().UTC()); err != nil {
+		log.Printf("warning: failed to write sync state: %v", err)
 	}
 
 	return nil

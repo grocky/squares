@@ -28,7 +28,6 @@ resource "aws_lambda_function" "cron" {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.squares.name
       POOL_ID        = var.pool_id
-      SERVER_URL     = "https://${var.domain_name}"
     }
   }
 
