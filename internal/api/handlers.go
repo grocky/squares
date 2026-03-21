@@ -29,9 +29,19 @@ type Handler struct {
 	templates  *template.Template
 	syncer     *syncer.Syncer
 	hub        *sse.Hub
+	version    string
 }
 
-func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS, s *syncer.Syncer, hub *sse.Hub) *Handler {
+type HandlerConfig struct {
+	Repo       *dynamo.Repo
+	EspnClient *espn.Client
+	TemplateFS fs.FS
+	Syncer     *syncer.Syncer
+	Hub        *sse.Hub
+	Version    string
+}
+
+func NewHandler(config HandlerConfig) *Handler {
 	funcMap := template.FuncMap{
 		"seq": func(n int) []int {
 			s := make([]int, n)
@@ -52,13 +62,14 @@ func NewHandler(repo *dynamo.Repo, espnClient *espn.Client, templateFS fs.FS, s 
 		},
 		"contains": strings.Contains,
 	}
-	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html"))
+	tmpl := template.Must(template.New("").Funcs(funcMap).ParseFS(config.TemplateFS, "templates/*.html"))
 	return &Handler{
-		repo:       repo,
-		espnClient: espnClient,
+		repo:       config.Repo,
+		espnClient: config.EspnClient,
 		templates:  tmpl,
-		syncer:     s,
-		hub:        hub,
+		syncer:     config.Syncer,
+		hub:        config.Hub,
+		version:    config.Version,
 	}
 }
 
@@ -134,7 +145,6 @@ type gridCell struct {
 	OwnerName string
 	IsWinner  bool
 	Amount    float64
-
 }
 
 type roundAxisPair struct {
@@ -213,6 +223,20 @@ func currentRound(games []models.Game) int {
 	return latest
 }
 
+func (h *Handler) renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
+	data = struct {
+		Version string
+		Data    interface{}
+	}{
+		Version: h.version,
+		Data:    data,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, tmpl, data); err != nil {
+		log.Printf("template error: %v", err)
+	}
+}
+
 func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
 	roundFilter := parseRoundFilter(r)
@@ -226,9 +250,8 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "index.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "index.html", data)
 }
 
 func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
@@ -240,9 +263,8 @@ func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Editing = true
-	if err := h.templates.ExecuteTemplate(w, "admin", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "admin", data)
 }
 
 func (h *Handler) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
@@ -295,9 +317,8 @@ func (h *Handler) handleGrid(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "grid.html", data)
 }
 
 func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
@@ -312,9 +333,8 @@ func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
 		Pool:         pool,
 		RoundConfigs: roundConfigs,
 	}
-	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "header", data)
 }
 
 func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
@@ -325,9 +345,8 @@ func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load leaderboard", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "leaderboard.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "leaderboard.html", data)
 }
 
 func (h *Handler) handleGames(w http.ResponseWriter, r *http.Request) {
@@ -338,9 +357,8 @@ func (h *Handler) handleGames(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load games", http.StatusInternalServerError)
 		return
 	}
-	if err := h.templates.ExecuteTemplate(w, "games.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "games.html", data)
 }
 
 // handleBroadcast allows the cron process to trigger an SSE broadcast to all connected clients.
@@ -461,9 +479,8 @@ func (h *Handler) handleUpdatePool(w http.ResponseWriter, r *http.Request) {
 
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
 	data := dashboardData{Pool: pool, Editing: true, RoundConfigs: roundConfigs}
-	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "header", data)
 }
 
 func (h *Handler) handleUpdateSquare(w http.ResponseWriter, r *http.Request) {
@@ -504,9 +521,8 @@ func (h *Handler) handleUpdateSquare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Editing = true
-	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "grid.html", data)
 }
 
 func (h *Handler) handleUpdateRoundAxis(w http.ResponseWriter, r *http.Request) {
@@ -551,9 +567,8 @@ func (h *Handler) handleUpdateRoundAxis(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	data.Editing = true
-	if err := h.templates.ExecuteTemplate(w, "grid.html", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "grid.html", data)
 }
 
 func (h *Handler) handleUpdateRoundConfig(w http.ResponseWriter, r *http.Request) {
@@ -594,9 +609,8 @@ func (h *Handler) handleUpdateRoundConfig(w http.ResponseWriter, r *http.Request
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(r.Context(), poolID)
 	pool, _ := h.repo.GetPool(r.Context(), poolID)
 	data := dashboardData{Pool: pool, Editing: true, RoundConfigs: roundConfigs}
-	if err := h.templates.ExecuteTemplate(w, "header", data); err != nil {
-		log.Printf("template error: %v", err)
-	}
+
+	h.renderTemplate(w, "header", data)
 }
 
 func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFilter int) (dashboardData, error) {
@@ -665,7 +679,6 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 		if sq.Row >= 0 && sq.Row < 10 && sq.Col >= 0 && sq.Col < 10 {
 			data.Grid[sq.Row][sq.Col] = gridCell{
 				OwnerName: sq.OwnerName,
-
 			}
 		}
 	}

@@ -8,14 +8,15 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	chiadapter "github.com/awslabs/aws-lambda-go-api-proxy/chi"
 	"github.com/grocky/squares/internal/api"
 	dynrepo "github.com/grocky/squares/internal/dynamo"
 	"github.com/grocky/squares/internal/espn"
 	"github.com/grocky/squares/internal/sse"
 	"github.com/grocky/squares/internal/syncer"
+	"github.com/grocky/squares/internal/version"
 	"github.com/grocky/squares/web"
 )
 
@@ -36,7 +37,16 @@ func main() {
 		log.Println("WARNING: ADMIN_TOKEN not set — admin area is unprotected (dev mode)")
 	}
 
-	handler := api.NewHandler(repo, espnClient, web.FS, s, hub)
+	handlerConfig := api.HandlerConfig{
+		Version:    version.Get(),
+		Repo:       repo,
+		EspnClient: espnClient,
+		Syncer:     s,
+		Hub:        hub,
+		TemplateFS: web.FS,
+	}
+
+	handler := api.NewHandler(handlerConfig)
 	mux := handler.Routes()
 
 	// Serve static files

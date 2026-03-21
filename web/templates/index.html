@@ -2,15 +2,15 @@
 
 {{define "header"}}
 <div id="header" class="mb-4">
-    <h1 class="text-2xl font-bold text-gray-900 mb-1">{{.Pool.Name}}</h1>
+    <h1 class="text-2xl font-bold text-gray-900 mb-1">{{.Data.Pool.Name}}</h1>
 
-    {{if .RoundConfigs}}
+    {{if .Data.RoundConfigs}}
     <div class="mt-2">
         <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">Round Payouts</h3>
         <table class="text-sm">
             <thead><tr><th class="pr-4 text-left text-gray-500 font-semibold">Round</th><th class="text-left text-gray-500 font-semibold">Payout</th></tr></thead>
             <tbody>
-            {{range .RoundConfigs}}
+            {{range .Data.RoundConfigs}}
             <tr>
                 <td class="pr-4 py-0.5">{{.Name}}</td>
                 <td class="py-0.5 font-medium">${{printf "%.0f" .PayoutAmount}}</td>
@@ -24,14 +24,14 @@
 {{end}}
 
 {{define "content"}}
-<div id="page" data-pool-id="{{.Pool.ID}}">
+<div id="page" data-pool-id="{{.Data.Pool.ID}}">
 
 {{template "header" .}}
 
 <div class="flex flex-wrap gap-1 mt-4" id="round-tabs">
-    {{range .RoundConfigs}}
-    <button class="round-tab{{if eq $.RoundFilter .RoundNum}} active{{end}}"
-            hx-get="/pools/{{$.Pool.ID}}/grid?round={{.RoundNum}}"
+    {{range .Data.RoundConfigs}}
+    <button class="round-tab{{if eq $.Data.RoundFilter .RoundNum}} active{{end}}"
+            hx-get="/pools/{{$.Data.Pool.ID}}/grid?round={{.RoundNum}}"
             hx-target="#grid" hx-swap="innerHTML"
             hx-on::after-request="selectRoundTab(this, {{.RoundNum}})">{{.Name}}</button>
     {{end}}
@@ -45,31 +45,31 @@
                    class="text-sm border border-gray-300 rounded px-3 py-1 w-48 focus:outline-none focus:ring-2 focus:ring-blue-400"
                    oninput="highlightOwner(this.value)">
         </div>
-        <div id="grid" hx-get="/pools/{{.Pool.ID}}/grid?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
+        <div id="grid" hx-get="/pools/{{.Data.Pool.ID}}/grid?round={{.Data.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading grid...
         </div>
     </div>
 
     <div class="w-full lg:w-80 flex-shrink-0">
         <h2 class="text-lg font-bold text-gray-800 mb-2">Leaderboard</h2>
-        <div id="leaderboard" hx-get="/pools/{{.Pool.ID}}/leaderboard?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
+        <div id="leaderboard" hx-get="/pools/{{.Data.Pool.ID}}/leaderboard?round={{.Data.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading leaderboard...
         </div>
 
         <h2 class="text-lg font-bold text-gray-800 mb-2 mt-6">Games</h2>
-        <div id="games" class="flex flex-col gap-2" hx-get="/pools/{{.Pool.ID}}/games?round={{.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
+        <div id="games" class="flex flex-col gap-2" hx-get="/pools/{{.Data.Pool.ID}}/games?round={{.Data.RoundFilter}}" hx-trigger="load, refresh" hx-swap="innerHTML">
             Loading games...
         </div>
     </div>
 </div>
 
 <footer class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-400">
-    <a href="/admin/pools/{{.Pool.ID}}" class="text-gray-400 hover:text-gray-600">Admin</a>
+    <a href="/admin/pools/{{.Data.Pool.ID}}" class="text-gray-400 hover:text-gray-600">Admin</a>
 </footer>
 </div>
 
 <script>
-var currentRound = {{.RoundFilter}};
+var currentRound = {{.Data.RoundFilter}};
 
 function selectRoundTab(btn, roundNum) {
     currentRound = roundNum;

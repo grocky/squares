@@ -1,18 +1,18 @@
-{{if .HasAxes}}
+{{if .Data.HasAxes}}
 <table class="squares-grid">
     <thead>
         <tr>
             <th class="corner">Winner\Loser</th>
-            {{range $i, $d := .WinnerAxis.Digits}}
+            {{range $i, $d := .Data.WinnerAxis.Digits}}
             <th>{{$d}}</th>
             {{end}}
         </tr>
     </thead>
     <tbody>
-        {{$grid := .Grid}}
+        {{$grid := .Data.Grid}}
         {{range $r, $_ := seq 10}}
         <tr>
-            <th>{{index $.LoserAxis.Digits $r}}</th>
+            <th>{{index $.Data.LoserAxis.Digits $r}}</th>
             {{range $c, $_ := seq 10}}
             {{$cell := index (index $grid $r) $c}}
             <td class="{{if $cell.IsWinner}}winner{{end}}" data-owner="{{$cell.OwnerName}}">

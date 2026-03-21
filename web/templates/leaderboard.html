@@ -1,4 +1,4 @@
-{{if .Leaderboard}}
+{{if .Data.Leaderboard}}
 <table class="leaderboard w-full text-sm">
     <thead>
         <tr class="border-b border-gray-200">
@@ -9,7 +9,7 @@
         </tr>
     </thead>
     <tbody>
-        {{range $i, $e := .Leaderboard}}
+        {{range $i, $e := .Data.Leaderboard}}
         <tr class="border-b border-gray-100" data-name="{{$e.Name}}">
             <td class="py-2 px-3">{{add $i 1}}</td>
             <td class="py-2 px-3 font-medium">{{$e.Name}}</td>
