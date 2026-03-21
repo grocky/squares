@@ -40,8 +40,10 @@ func main() {
 		log.Println("WARNING: ADMIN_TOKEN not set — admin area is unprotected (dev mode)")
 	}
 
+	appVersion := version.Get()
+
 	handlerConfig := api.HandlerConfig{
-		Version:    version.Get(),
+		Version:    appVersion,
 		Repo:       repo,
 		EspnClient: espnClient,
 		Syncer:     s,
@@ -75,7 +77,7 @@ func main() {
 
 		// Start server in background
 		go func() {
-			log.Printf("listening on :%s", port)
+			log.Printf("listening on :%s, version: %s", port, appVersion)
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("server error: %v", err)
 			}
