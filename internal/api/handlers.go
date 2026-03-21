@@ -174,23 +174,39 @@ func parseRoundFilter(r *http.Request) int {
 }
 
 // currentRound returns the round number for the current view:
-// 1. Any round with games scheduled/played today
-// 2. The highest round that has at least one final or in_progress game
-// 3. Falls back to 1
+// 1. The highest round that has an in_progress game
+// 2. Any round with games scheduled/played today
+// 3. The highest round that has at least one final game
+// 4. Falls back to 1
 func currentRound(games []models.Game) int {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 
-	// Prefer any round with games today
+	// Prefer the highest round with an in-progress game
+	inProgress := 0
 	for _, g := range games {
-		if !g.StartTime.IsZero() && g.StartTime.UTC().Truncate(24*time.Hour).Equal(today) {
-			return g.RoundNum
+		if g.Status == "in_progress" && g.RoundNum > inProgress {
+			inProgress = g.RoundNum
 		}
 	}
+	if inProgress > 0 {
+		return inProgress
+	}
 
-	// Fall back to highest round with active/completed games
+	// Next: prefer the highest round with games today
+	todayRound := 0
+	for _, g := range games {
+		if !g.StartTime.IsZero() && g.StartTime.UTC().Truncate(24*time.Hour).Equal(today) && g.RoundNum > todayRound {
+			todayRound = g.RoundNum
+		}
+	}
+	if todayRound > 0 {
+		return todayRound
+	}
+
+	// Fall back to highest round with completed games
 	latest := 1
 	for _, g := range games {
-		if (g.Status == "final" || g.Status == "in_progress") && g.RoundNum > latest {
+		if g.Status == "final" && g.RoundNum > latest {
 			latest = g.RoundNum
 		}
 	}
