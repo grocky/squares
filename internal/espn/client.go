@@ -100,24 +100,28 @@ func roundFromHeadline(headline string) int {
 
 // fetchDate fetches games for a single YYYYMMDD date string.
 func (c *Client) fetchDate(ctx context.Context, date string) ([]event, error) {
-	url := scoreboardBaseURL + "&dates=" + date
+	return c.fetchDateURL(ctx, scoreboardBaseURL+"&dates="+date)
+}
+
+// fetchDateURL fetches games from an arbitrary URL (used by tests with httptest).
+func (c *Client) fetchDateURL(ctx context.Context, url string) ([]event, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetching scoreboard for %s: %w", date, err)
+		return nil, fmt.Errorf("fetching scoreboard: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ESPN API returned status %d for date %s", resp.StatusCode, date)
+		return nil, fmt.Errorf("ESPN API returned status %d", resp.StatusCode)
 	}
 
 	var sb scoreboardResponse
 	if err := json.NewDecoder(resp.Body).Decode(&sb); err != nil {
-		return nil, fmt.Errorf("decoding response for %s: %w", date, err)
+		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 	return sb.Events, nil
 }
@@ -154,6 +158,23 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 		}
 	}
 
+	return c.eventsToGames(seen), nil
+}
+
+// fetchGamesFromURL fetches from a single URL and converts to games (used by tests).
+func (c *Client) fetchGamesFromURL(ctx context.Context, url string) ([]models.Game, error) {
+	events, err := c.fetchDateURL(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]event)
+	for _, ev := range events {
+		seen[ev.ID] = ev
+	}
+	return c.eventsToGames(seen), nil
+}
+
+func (c *Client) eventsToGames(seen map[string]event) []models.Game {
 	var allEvents []event
 	for _, ev := range seen {
 		allEvents = append(allEvents, ev)
@@ -216,7 +237,7 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 
 		games = append(games, g)
 	}
-	return games, nil
+	return games
 }
 
 func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, error) {

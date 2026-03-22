@@ -5,18 +5,31 @@ import (
 	"log"
 	"time"
 
-	"github.com/grocky/squares/internal/dynamo"
-	"github.com/grocky/squares/internal/espn"
 	"github.com/grocky/squares/internal/models"
 	"github.com/grocky/squares/internal/scorer"
 )
 
-type Syncer struct {
-	repo       *dynamo.Repo
-	espnClient *espn.Client
+// Repository defines the data access methods the syncer needs.
+type Repository interface {
+	GetAllSquares(ctx context.Context, poolID string) ([]models.Square, error)
+	GetAllRoundConfigs(ctx context.Context, poolID string) ([]models.RoundConfig, error)
+	GetRoundAxis(ctx context.Context, poolID string, roundNum int, axisType string) (models.Axis, error)
+	PayoutExists(ctx context.Context, poolID, gameID string, row, col int) (bool, error)
+	PutPayout(ctx context.Context, p models.Payout) error
+	PutSyncState(ctx context.Context, poolID string, syncedAt time.Time) error
 }
 
-func New(repo *dynamo.Repo, espnClient *espn.Client) *Syncer {
+// ESPNClient defines the ESPN data fetching method the syncer needs.
+type ESPNClient interface {
+	SyncGames(ctx context.Context, poolID string) ([]models.Game, error)
+}
+
+type Syncer struct {
+	repo       Repository
+	espnClient ESPNClient
+}
+
+func New(repo Repository, espnClient ESPNClient) *Syncer {
 	return &Syncer{repo: repo, espnClient: espnClient}
 }
 
