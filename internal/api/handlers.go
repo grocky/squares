@@ -44,6 +44,7 @@ type Handler struct {
 	syncer     *syncer.Syncer
 	hub        *sse.Hub
 	version    string
+	cache      *poolCache
 }
 
 type HandlerConfig struct {
@@ -84,6 +85,7 @@ func NewHandler(config HandlerConfig) *Handler {
 		syncer:     config.Syncer,
 		hub:        config.Hub,
 		version:    config.Version,
+		cache:      newPoolCache(60 * time.Second),
 	}
 }
 
@@ -257,7 +259,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 		allGames, _ := h.repo.GetAllGamesGlobal(r.Context())
 		roundFilter = currentRound(allGames)
 	}
-	data, err := h.loadFullDashboard(r.Context(), poolID, roundFilter)
+	data, err := h.loadFullDashboard(r.Context(), poolID, roundFilter, true)
 	if err != nil {
 		log.Printf("error building dashboard: %v", err)
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
@@ -269,7 +271,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
-	data, err := h.loadFullDashboard(r.Context(), poolID, 0)
+	data, err := h.loadFullDashboard(r.Context(), poolID, 0, false)
 	if err != nil {
 		log.Printf("error building admin dashboard: %v", err)
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
@@ -480,6 +482,7 @@ func (h *Handler) handleUpdatePool(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to update pool", http.StatusInternalServerError)
 		return
 	}
+	h.cache.invalidate(poolID)
 
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
 	data := dashboardData{Pool: pool, Editing: true, RoundConfigs: roundConfigs}
@@ -564,6 +567,7 @@ func (h *Handler) handleUpdateRoundAxis(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "failed to update axis", http.StatusInternalServerError)
 		return
 	}
+	h.cache.invalidate(poolID)
 
 	data, err := h.loadGridData(r.Context(), poolID, 0)
 	if err != nil {
@@ -609,6 +613,7 @@ func (h *Handler) handleUpdateRoundConfig(w http.ResponseWriter, r *http.Request
 		http.Error(w, "failed to update round config", http.StatusInternalServerError)
 		return
 	}
+	h.cache.invalidate(poolID)
 
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(r.Context(), poolID)
 	pool, _ := h.repo.GetPool(r.Context(), poolID)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/grocky/squares/internal/models"
 )
@@ -88,7 +89,7 @@ func (m *mockRepo) called(method string) int {
 }
 
 func newTestHandler(repo *mockRepo) *Handler {
-	return &Handler{repo: repo}
+	return &Handler{repo: repo, cache: newPoolCache(60 * time.Second)}
 }
 
 func TestLoadFullDashboard_CallsAllRepoMethods(t *testing.T) {
@@ -96,7 +97,7 @@ func TestLoadFullDashboard_CallsAllRepoMethods(t *testing.T) {
 	repo.pool = models.Pool{ID: "p1", Name: "Test"}
 	h := newTestHandler(repo)
 
-	data, err := h.loadFullDashboard(context.Background(), "p1", 0)
+	data, err := h.loadFullDashboard(context.Background(), "p1", 0, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -121,15 +122,11 @@ func TestLoadGridData_CallsExpectedMethods(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, method := range []string{"GetAllRoundConfigs", "GetAllRoundAxes", "GetAllSquares", "GetAllGamesGlobal", "GetAllPayouts"} {
+	// loadGridData uses loadPoolMetadata (with cache), which fetches pool on cache miss
+	for _, method := range []string{"GetPool", "GetAllRoundConfigs", "GetAllRoundAxes", "GetAllSquares", "GetAllGamesGlobal", "GetAllPayouts"} {
 		if repo.called(method) != 1 {
 			t.Errorf("%s called %d times, want 1", method, repo.called(method))
 		}
-	}
-
-	// Grid loader does NOT call GetPool
-	if repo.called("GetPool") != 0 {
-		t.Errorf("GetPool should not be called by loadGridData, called %d times", repo.called("GetPool"))
 	}
 }
 
@@ -282,7 +279,7 @@ func TestLoadFullDashboard_RoundFilter(t *testing.T) {
 	}
 	h := newTestHandler(repo)
 
-	data, err := h.loadFullDashboard(context.Background(), "p1", 1)
+	data, err := h.loadFullDashboard(context.Background(), "p1", 1, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

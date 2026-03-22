@@ -8,6 +8,29 @@ import (
 	"github.com/grocky/squares/internal/models"
 )
 
+// loadPoolMetadata fetches pool, round configs, and axes — using the cache when useCache is true.
+func (h *Handler) loadPoolMetadata(ctx context.Context, poolID string, useCache bool) (models.Pool, []models.RoundConfig, []models.Axis) {
+	if useCache && h.cache != nil {
+		if entry, ok := h.cache.get(poolID); ok {
+			return entry.pool, entry.roundConfigs, entry.roundAxes
+		}
+	}
+
+	pool, _ := h.repo.GetPool(ctx, poolID)
+	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
+	allAxes, _ := h.repo.GetAllRoundAxes(ctx, poolID)
+
+	if useCache && h.cache != nil {
+		h.cache.set(poolID, poolCacheEntry{
+			pool:         pool,
+			roundConfigs: roundConfigs,
+			roundAxes:    allAxes,
+		})
+	}
+
+	return pool, roundConfigs, allAxes
+}
+
 // buildAxesData builds roundAxes pairs and selects the display axes for the given round.
 func buildAxesData(allAxes []models.Axis, roundConfigs []models.RoundConfig, roundFilter int) ([]roundAxisPair, models.Axis, models.Axis, bool) {
 	rcMap := make(map[int]string)
@@ -145,15 +168,13 @@ func buildLeaderboard(allPayouts []models.Payout) []leaderEntry {
 }
 
 // loadFullDashboard fetches all data needed for the full page render.
-// Used by handlePoolDashboard and handleAdminDashboard.
-func (h *Handler) loadFullDashboard(ctx context.Context, poolID string, roundFilter int) (dashboardData, error) {
-	pool, err := h.repo.GetPool(ctx, poolID)
-	if err != nil {
-		return dashboardData{}, err
+// Used by handlePoolDashboard (useCache=true) and handleAdminDashboard (useCache=false).
+func (h *Handler) loadFullDashboard(ctx context.Context, poolID string, roundFilter int, useCache bool) (dashboardData, error) {
+	pool, roundConfigs, allAxes := h.loadPoolMetadata(ctx, poolID, useCache)
+	if pool.ID == "" {
+		return dashboardData{}, fmt.Errorf("pool not found: %s", poolID)
 	}
 
-	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
-	allAxes, _ := h.repo.GetAllRoundAxes(ctx, poolID)
 	roundAxes, winnerAxis, loserAxis, hasAxes := buildAxesData(allAxes, roundConfigs, roundFilter)
 
 	squares, err := h.repo.GetAllSquares(ctx, poolID)
@@ -213,8 +234,7 @@ func (h *Handler) loadFullDashboard(ctx context.Context, poolID string, roundFil
 // loadGridData fetches axes, squares, payouts, and games for the selected round.
 // Used by handleGrid, handleUpdateSquare, handleUpdateRoundAxis.
 func (h *Handler) loadGridData(ctx context.Context, poolID string, roundFilter int) (dashboardData, error) {
-	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
-	allAxes, _ := h.repo.GetAllRoundAxes(ctx, poolID)
+	_, roundConfigs, allAxes := h.loadPoolMetadata(ctx, poolID, true)
 	roundAxes, winnerAxis, loserAxis, hasAxes := buildAxesData(allAxes, roundConfigs, roundFilter)
 
 	squares, err := h.repo.GetAllSquares(ctx, poolID)
