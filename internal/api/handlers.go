@@ -10,21 +10,35 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/grocky/squares/internal/dynamo"
 	"github.com/grocky/squares/internal/espn"
 	"github.com/grocky/squares/internal/models"
 	"github.com/grocky/squares/internal/sse"
 	"github.com/grocky/squares/internal/syncer"
 )
 
+// repository defines the data access methods used by handlers and loaders.
+type repository interface {
+	GetPool(ctx context.Context, poolID string) (models.Pool, error)
+	PutPool(ctx context.Context, pool models.Pool) error
+	GetAllRoundConfigs(ctx context.Context, poolID string) ([]models.RoundConfig, error)
+	GetRoundConfig(ctx context.Context, poolID string, roundNum int) (models.RoundConfig, error)
+	PutRoundConfig(ctx context.Context, rc models.RoundConfig) error
+	GetAllRoundAxes(ctx context.Context, poolID string) ([]models.Axis, error)
+	GetRoundAxis(ctx context.Context, poolID string, roundNum int, axisType string) (models.Axis, error)
+	PutRoundAxis(ctx context.Context, axis models.Axis) error
+	GetAllSquares(ctx context.Context, poolID string) ([]models.Square, error)
+	PutSquare(ctx context.Context, sq models.Square) error
+	GetAllGamesGlobal(ctx context.Context) ([]models.Game, error)
+	GetAllPayouts(ctx context.Context, poolID string) ([]models.Payout, error)
+}
+
 type Handler struct {
-	repo       *dynamo.Repo
+	repo       repository
 	espnClient *espn.Client
 	templates  *template.Template
 	syncer     *syncer.Syncer
@@ -33,7 +47,7 @@ type Handler struct {
 }
 
 type HandlerConfig struct {
-	Repo       *dynamo.Repo
+	Repo       repository
 	EspnClient *espn.Client
 	TemplateFS fs.FS
 	Syncer     *syncer.Syncer
@@ -243,7 +257,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 		allGames, _ := h.repo.GetAllGamesGlobal(r.Context())
 		roundFilter = currentRound(allGames)
 	}
-	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
+	data, err := h.loadFullDashboard(r.Context(), poolID, roundFilter)
 	if err != nil {
 		log.Printf("error building dashboard: %v", err)
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
@@ -255,7 +269,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
-	data, err := h.buildDashboardData(r.Context(), poolID, 0)
+	data, err := h.loadFullDashboard(r.Context(), poolID, 0)
 	if err != nil {
 		log.Printf("error building admin dashboard: %v", err)
 		http.Error(w, "failed to load pool", http.StatusInternalServerError)
@@ -311,7 +325,7 @@ func (h *Handler) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleGrid(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
 	roundFilter := parseRoundFilter(r)
-	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
+	data, err := h.loadGridData(r.Context(), poolID, roundFilter)
 	if err != nil {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
@@ -338,8 +352,7 @@ func (h *Handler) handleHeader(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
-	roundFilter := parseRoundFilter(r)
-	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
+	data, err := h.loadLeaderboardData(r.Context(), poolID)
 	if err != nil {
 		http.Error(w, "failed to load leaderboard", http.StatusInternalServerError)
 		return
@@ -349,9 +362,8 @@ func (h *Handler) handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGames(w http.ResponseWriter, r *http.Request) {
-	poolID := chi.URLParam(r, "poolID")
 	roundFilter := parseRoundFilter(r)
-	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
+	data, err := h.loadGamesData(r.Context(), roundFilter)
 	if err != nil {
 		http.Error(w, "failed to load games", http.StatusInternalServerError)
 		return
@@ -507,7 +519,7 @@ func (h *Handler) handleUpdateSquare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.buildDashboardData(r.Context(), poolID, 0)
+	data, err := h.loadGridData(r.Context(), poolID, 0)
 	if err != nil {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
@@ -553,7 +565,7 @@ func (h *Handler) handleUpdateRoundAxis(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	data, err := h.buildDashboardData(r.Context(), poolID, 0)
+	data, err := h.loadGridData(r.Context(), poolID, 0)
 	if err != nil {
 		http.Error(w, "failed to load grid", http.StatusInternalServerError)
 		return
@@ -605,184 +617,3 @@ func (h *Handler) handleUpdateRoundConfig(w http.ResponseWriter, r *http.Request
 	h.renderTemplate(w, "header", data)
 }
 
-func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFilter int) (dashboardData, error) {
-	pool, err := h.repo.GetPool(ctx, poolID)
-	if err != nil {
-		return dashboardData{}, err
-	}
-
-	var data dashboardData
-	data.Pool = pool
-	data.RoundFilter = roundFilter
-
-	// Load round configs
-	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
-	data.RoundConfigs = roundConfigs
-
-	// Load all axes in a single query (replaces 12 serial GetItem calls)
-	rcMap := make(map[int]string)
-	for _, rc := range roundConfigs {
-		rcMap[rc.RoundNum] = rc.Name
-	}
-
-	allAxes, _ := h.repo.GetAllRoundAxes(ctx, poolID)
-	winnerAxes := make(map[int]models.Axis)
-	loserAxes := make(map[int]models.Axis)
-	for _, ax := range allAxes {
-		if ax.Type == "winner" {
-			winnerAxes[ax.RoundNum] = ax
-		} else {
-			loserAxes[ax.RoundNum] = ax
-		}
-	}
-
-	var roundAxes []roundAxisPair
-	for roundNum := 1; roundNum <= 6; roundNum++ {
-		wa, wOk := winnerAxes[roundNum]
-		la, lOk := loserAxes[roundNum]
-		if wOk && lOk {
-			name := rcMap[roundNum]
-			if name == "" {
-				name = fmt.Sprintf("Round %d", roundNum)
-			}
-			roundAxes = append(roundAxes, roundAxisPair{
-				RoundNum:   roundNum,
-				RoundName:  name,
-				WinnerAxis: wa,
-				LoserAxis:  la,
-			})
-		}
-	}
-	data.RoundAxes = roundAxes
-
-	// Use the filtered round's axes for grid display, or round 1 as default
-	displayRound := roundFilter
-	if displayRound == 0 {
-		displayRound = 1
-	}
-	for _, ra := range roundAxes {
-		if ra.RoundNum == displayRound {
-			data.WinnerAxis = ra.WinnerAxis
-			data.LoserAxis = ra.LoserAxis
-			data.HasAxes = true
-			break
-		}
-	}
-	if !data.HasAxes && len(roundAxes) > 0 {
-		data.WinnerAxis = roundAxes[0].WinnerAxis
-		data.LoserAxis = roundAxes[0].LoserAxis
-		data.HasAxes = true
-	}
-
-	squares, err := h.repo.GetAllSquares(ctx, poolID)
-	if err != nil {
-		return dashboardData{}, err
-	}
-	for _, sq := range squares {
-		if sq.Row >= 0 && sq.Row < 10 && sq.Col >= 0 && sq.Col < 10 {
-			data.Grid[sq.Row][sq.Col] = gridCell{
-				OwnerName: sq.OwnerName,
-			}
-		}
-	}
-
-	// Build game → round number map so we can look up current payout amounts
-	allGames, err := h.repo.GetAllGamesGlobal(ctx)
-	if err != nil {
-		return dashboardData{}, err
-	}
-	gameRoundMap := make(map[string]int)
-	for _, g := range allGames {
-		gameRoundMap[g.EspnID] = g.RoundNum
-	}
-
-	// Filter games by round if a filter is set
-	if roundFilter > 0 {
-		var filtered []models.Game
-		for _, g := range allGames {
-			if g.RoundNum == roundFilter {
-				filtered = append(filtered, g)
-			}
-		}
-		data.Games = filtered
-	} else {
-		data.Games = allGames
-	}
-	sort.Slice(data.Games, func(i, j int) bool {
-		return data.Games[i].StartTime.Before(data.Games[j].StartTime)
-	})
-
-	// Build a set of game IDs in the filtered round for payout filtering
-	filteredGameIDs := make(map[string]bool)
-	if roundFilter > 0 {
-		for _, g := range data.Games {
-			filteredGameIDs[g.EspnID] = true
-		}
-	}
-
-	// Build round config payout map
-	rcPayoutMap := make(map[int]float64)
-	for _, rc := range roundConfigs {
-		rcPayoutMap[rc.RoundNum] = rc.PayoutAmount
-	}
-
-	allPayouts, err := h.repo.GetAllPayouts(ctx, poolID)
-	if err != nil {
-		return dashboardData{}, err
-	}
-	// Override stored payout amount with current round config amount
-	for i, p := range allPayouts {
-		if roundNum, ok := gameRoundMap[p.GameID]; ok {
-			if currentAmount, ok := rcPayoutMap[roundNum]; ok {
-				allPayouts[i].Amount = currentAmount
-			}
-		}
-	}
-
-	// Filter payouts by round if a filter is set
-	var payouts []models.Payout
-	if roundFilter > 0 {
-		for _, p := range allPayouts {
-			if filteredGameIDs[p.GameID] {
-				payouts = append(payouts, p)
-			}
-		}
-	} else {
-		payouts = allPayouts
-	}
-	data.Payouts = payouts
-	for _, p := range payouts {
-		if p.Row >= 0 && p.Row < 10 && p.Col >= 0 && p.Col < 10 {
-			cell := &data.Grid[p.Row][p.Col]
-			cell.IsWinner = true
-			cell.Amount += p.Amount
-		}
-	}
-
-	// Build leaderboard from all rounds (not filtered by round)
-	totals := make(map[string]*leaderEntry)
-	for _, p := range allPayouts {
-		e, ok := totals[p.OwnerName]
-		if !ok {
-			e = &leaderEntry{Name: p.OwnerName}
-			totals[p.OwnerName] = e
-		}
-		e.Total += p.Amount
-		e.Wins++
-	}
-	for _, e := range totals {
-		data.Leaderboard = append(data.Leaderboard, *e)
-	}
-	sort.Slice(data.Leaderboard, func(i, j int) bool {
-		a, b := data.Leaderboard[i], data.Leaderboard[j]
-		if a.Total != b.Total {
-			return a.Total > b.Total
-		}
-		if a.Wins != b.Wins {
-			return a.Wins > b.Wins
-		}
-		return a.Name < b.Name
-	})
-
-	return data, nil
-}
