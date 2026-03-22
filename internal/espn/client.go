@@ -202,8 +202,10 @@ func (c *Client) FetchGames(ctx context.Context) ([]models.Game, error) {
 
 		g.HomeTeam = homeTeam
 		g.AwayTeam = awayTeam
+		g.HomeScore = homeScore
+		g.AwayScore = awayScore
 
-		// Determine winner/loser scores: higher score = winner
+		// Derive winner/loser scores for the scorer logic
 		if homeScore >= awayScore {
 			g.WinnerScore = homeScore
 			g.LoserScore = awayScore

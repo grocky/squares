@@ -8,20 +8,20 @@
     </div>
 
     {{if eq .Status "scheduled"}}
-    {{/* Scheduled: show date/time instead of scores */}}
+    {{/* Scheduled: show date/time */}}
     <div class="w-[100px] flex flex-col items-end justify-center py-3 px-4 text-right">
         <span class="text-xs font-semibold text-gray-500">{{formatTime .StartTime "Mon Jan 2"}}</span>
         <span class="text-sm font-bold text-gray-700">{{formatTime .StartTime "3:04 PM"}}</span>
     </div>
 
     {{else}}
-    {{/* Scores column */}}
-    <div class="w-[60px] flex flex-col justify-center py-3 px-2 text-right font-mono tabular-nums">
-        <span class="text-sm font-bold text-gray-800">{{.WinnerScore}}</span>
-        <span class="text-sm font-bold text-gray-800">{{.LoserScore}}</span>
+    {{/* Scores: away on top, home on bottom — matching team order */}}
+    <div class="w-[48px] flex flex-col justify-center py-3 px-2 text-right font-mono tabular-nums">
+        <span class="text-sm font-bold text-gray-800">{{.AwayScore}}</span>
+        <span class="text-sm font-bold text-gray-800">{{.HomeScore}}</span>
     </div>
 
-    {{/* Status column */}}
+    {{/* Status badge */}}
     <div class="w-[80px] flex items-center justify-center py-3 px-2">
         {{if eq .Status "final"}}
         <span class="text-xs font-bold uppercase tracking-wide text-green-800 bg-green-100 px-2 py-0.5 rounded-full">Final</span>

@@ -262,6 +262,8 @@ func (r *Repo) PutGame(ctx context.Context, game models.Game) error {
 			"awayTeam":    &types.AttributeValueMemberS{Value: game.AwayTeam},
 			"round":       &types.AttributeValueMemberS{Value: game.Round},
 			"roundNum":    &types.AttributeValueMemberN{Value: strconv.Itoa(game.RoundNum)},
+			"homeScore":   &types.AttributeValueMemberN{Value: strconv.Itoa(game.HomeScore)},
+			"awayScore":   &types.AttributeValueMemberN{Value: strconv.Itoa(game.AwayScore)},
 			"winnerScore": &types.AttributeValueMemberN{Value: strconv.Itoa(game.WinnerScore)},
 			"loserScore":  &types.AttributeValueMemberN{Value: strconv.Itoa(game.LoserScore)},
 			"status":      &types.AttributeValueMemberS{Value: game.Status},
@@ -301,6 +303,12 @@ func (r *Repo) GetAllGames(ctx context.Context, poolID string) ([]models.Game, e
 		}
 		if v, ok := item["roundNum"].(*types.AttributeValueMemberN); ok {
 			g.RoundNum, _ = strconv.Atoi(v.Value)
+		}
+		if v, ok := item["homeScore"].(*types.AttributeValueMemberN); ok {
+			g.HomeScore, _ = strconv.Atoi(v.Value)
+		}
+		if v, ok := item["awayScore"].(*types.AttributeValueMemberN); ok {
+			g.AwayScore, _ = strconv.Atoi(v.Value)
 		}
 		if v, ok := item["winnerScore"].(*types.AttributeValueMemberN); ok {
 			g.WinnerScore, _ = strconv.Atoi(v.Value)
