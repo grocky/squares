@@ -105,6 +105,34 @@ tr.dimmed td {
     opacity: 0.4;
 }
 
+/* Round payout cards */
+.payout-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #0f3460;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 14px;
+    min-width: 90px;
+}
+
+.payout-card-round {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.75;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.payout-card-amount {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
 /* Edit inputs (admin) */
 .edit-inline {
     border: 2px solid #e2a03f;
