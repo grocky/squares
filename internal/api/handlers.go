@@ -93,7 +93,6 @@ func (h *Handler) Routes() *chi.Mux {
 	r.Post("/pools/{poolID}/squares", h.handleAssignSquares)
 	r.Post("/pools/{poolID}/axes", h.handleAssignAxes)
 
-	r.Post("/pools/{poolID}/broadcast", h.handleBroadcast)
 	r.Put("/pools/{poolID}", h.handleUpdatePool)
 	r.Put("/pools/{poolID}/squares/{row}/{col}", h.handleUpdateSquare)
 	r.Put("/pools/{poolID}/rounds/{roundNum}/axis/{type}", h.handleUpdateRoundAxis)
@@ -359,13 +358,6 @@ func (h *Handler) handleGames(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderTemplate(w, "games.html", data)
-}
-
-// handleBroadcast allows the cron process to trigger an SSE broadcast to all connected clients.
-func (h *Handler) handleBroadcast(w http.ResponseWriter, r *http.Request) {
-	h.hub.Broadcast("sync")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, `{"ok":true}`)
 }
 
 func (h *Handler) handleSync(w http.ResponseWriter, r *http.Request) {

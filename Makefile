@@ -148,7 +148,7 @@ tf-destroy: ## Destroy infrastructure (careful!)
 	terraform -chdir=infrastructure destroy
 
 .PHONY: deploy
-deploy: build-cron tf-apply docker-push ecs-deploy ## Full deploy: cron Lambda + Docker image + ECS redeploy
+deploy: build-cron tf-apply ecs-deploy ## Full deploy: cron Lambda + Docker image + ECS redeploy
 
 # =============================================================================
 # Quality

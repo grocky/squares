@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -71,18 +69,6 @@ func runSync(ctx context.Context, s *syncer.Syncer, poolID, serverURL string) er
 		return err
 	}
 	log.Printf("sync complete for pool %s", poolID)
-
-	// Notify the server to broadcast SSE update to connected clients
-	if serverURL != "" {
-		url := fmt.Sprintf("%s/pools/%s/broadcast", serverURL, poolID)
-		resp, err := http.Post(url, "application/json", nil)
-		if err != nil {
-			log.Printf("warning: failed to notify server: %v", err)
-		} else {
-			resp.Body.Close()
-			log.Printf("notified server at %s", url)
-		}
-	}
 	return nil
 }
 
