@@ -21,7 +21,7 @@ type Repository interface {
 
 // ESPNClient defines the ESPN data fetching method the syncer needs.
 type ESPNClient interface {
-	SyncGames(ctx context.Context, poolID string) ([]models.Game, error)
+	SyncGames(ctx context.Context) ([]models.Game, error)
 }
 
 type Syncer struct {
@@ -35,7 +35,7 @@ func New(repo Repository, espnClient ESPNClient) *Syncer {
 
 // Sync fetches games from ESPN, computes payouts for final games, and stores them.
 func (s *Syncer) Sync(ctx context.Context, poolID string) error {
-	games, err := s.espnClient.SyncGames(ctx, poolID)
+	games, err := s.espnClient.SyncGames(ctx)
 	if err != nil {
 		return err
 	}

@@ -240,14 +240,14 @@ func (c *Client) eventsToGames(seen map[string]event) []models.Game {
 	return games
 }
 
-func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, error) {
+func (c *Client) SyncGames(ctx context.Context) ([]models.Game, error) {
 	freshGames, err := c.FetchGames(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load existing games so we never regress a status
-	existingGames, _ := c.repo.GetAllGames(ctx, poolID)
+	existingGames, _ := c.repo.GetAllGamesGlobal(ctx)
 	existingMap := make(map[string]models.Game)
 	for _, g := range existingGames {
 		existingMap[g.EspnID] = g
@@ -257,7 +257,6 @@ func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, e
 
 	for i := range freshGames {
 		g := &freshGames[i]
-		g.PoolID = poolID
 
 		// Never regress status (e.g. final → in_progress or scheduled)
 		if existing, ok := existingMap[g.EspnID]; ok {
@@ -274,7 +273,7 @@ func (c *Client) SyncGames(ctx context.Context, poolID string) ([]models.Game, e
 			}
 		}
 
-		if err := c.repo.PutGame(ctx, *g); err != nil {
+		if err := c.repo.PutGameGlobal(ctx, *g); err != nil {
 			return nil, fmt.Errorf("upserting game %s: %w", g.EspnID, err)
 		}
 	}

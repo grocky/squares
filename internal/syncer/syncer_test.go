@@ -16,7 +16,7 @@ type mockESPN struct {
 	err   error
 }
 
-func (m *mockESPN) SyncGames(_ context.Context, _ string) ([]models.Game, error) {
+func (m *mockESPN) SyncGames(_ context.Context) ([]models.Game, error) {
 	return m.games, m.err
 }
 

@@ -240,7 +240,7 @@ func (h *Handler) handlePoolDashboard(w http.ResponseWriter, r *http.Request) {
 	poolID := chi.URLParam(r, "poolID")
 	roundFilter := parseRoundFilter(r)
 	if roundFilter == 0 {
-		allGames, _ := h.repo.GetAllGames(r.Context(), poolID)
+		allGames, _ := h.repo.GetAllGamesGlobal(r.Context())
 		roundFilter = currentRound(allGames)
 	}
 	data, err := h.buildDashboardData(r.Context(), poolID, roundFilter)
@@ -619,17 +619,28 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 	roundConfigs, _ := h.repo.GetAllRoundConfigs(ctx, poolID)
 	data.RoundConfigs = roundConfigs
 
-	// Load axes for all rounds
-	var roundAxes []roundAxisPair
+	// Load all axes in a single query (replaces 12 serial GetItem calls)
 	rcMap := make(map[int]string)
 	for _, rc := range roundConfigs {
 		rcMap[rc.RoundNum] = rc.Name
 	}
 
+	allAxes, _ := h.repo.GetAllRoundAxes(ctx, poolID)
+	winnerAxes := make(map[int]models.Axis)
+	loserAxes := make(map[int]models.Axis)
+	for _, ax := range allAxes {
+		if ax.Type == "winner" {
+			winnerAxes[ax.RoundNum] = ax
+		} else {
+			loserAxes[ax.RoundNum] = ax
+		}
+	}
+
+	var roundAxes []roundAxisPair
 	for roundNum := 1; roundNum <= 6; roundNum++ {
-		winnerAxis, wErr := h.repo.GetRoundAxis(ctx, poolID, roundNum, "winner")
-		loserAxis, lErr := h.repo.GetRoundAxis(ctx, poolID, roundNum, "loser")
-		if wErr == nil && lErr == nil {
+		wa, wOk := winnerAxes[roundNum]
+		la, lOk := loserAxes[roundNum]
+		if wOk && lOk {
 			name := rcMap[roundNum]
 			if name == "" {
 				name = fmt.Sprintf("Round %d", roundNum)
@@ -637,8 +648,8 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 			roundAxes = append(roundAxes, roundAxisPair{
 				RoundNum:   roundNum,
 				RoundName:  name,
-				WinnerAxis: winnerAxis,
-				LoserAxis:  loserAxis,
+				WinnerAxis: wa,
+				LoserAxis:  la,
 			})
 		}
 	}
@@ -676,7 +687,7 @@ func (h *Handler) buildDashboardData(ctx context.Context, poolID string, roundFi
 	}
 
 	// Build game → round number map so we can look up current payout amounts
-	allGames, err := h.repo.GetAllGames(ctx, poolID)
+	allGames, err := h.repo.GetAllGamesGlobal(ctx)
 	if err != nil {
 		return dashboardData{}, err
 	}

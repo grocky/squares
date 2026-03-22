@@ -43,7 +43,6 @@ type Square struct {
 }
 
 type Game struct {
-	PoolID      string
 	EspnID      string
 	HomeTeam    string
 	AwayTeam    string

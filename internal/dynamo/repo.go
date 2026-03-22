@@ -15,8 +15,15 @@ import (
 	"github.com/grocky/squares/internal/models"
 )
 
+// dynamoClient defines the subset of DynamoDB operations used by Repo.
+type dynamoClient interface {
+	PutItem(ctx context.Context, input *dynamodb.PutItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	GetItem(ctx context.Context, input *dynamodb.GetItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	Query(ctx context.Context, input *dynamodb.QueryInput, opts ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
+}
+
 type Repo struct {
-	client    *dynamodb.Client
+	client    dynamoClient
 	tableName string
 }
 
@@ -250,13 +257,13 @@ func (r *Repo) GetAllSquares(ctx context.Context, poolID string) ([]models.Squar
 	return squares, nil
 }
 
-// Game operations
+// Game operations — global partition (PK=GAMES)
 
-func (r *Repo) PutGame(ctx context.Context, game models.Game) error {
+func (r *Repo) PutGameGlobal(ctx context.Context, game models.Game) error {
 	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &r.tableName,
 		Item: map[string]types.AttributeValue{
-			"PK":          &types.AttributeValueMemberS{Value: "POOL#" + game.PoolID},
+			"PK":          &types.AttributeValueMemberS{Value: "GAMES"},
 			"SK":          &types.AttributeValueMemberS{Value: "GAME#" + game.EspnID},
 			"homeTeam":    &types.AttributeValueMemberS{Value: game.HomeTeam},
 			"awayTeam":    &types.AttributeValueMemberS{Value: game.AwayTeam},
@@ -274,21 +281,35 @@ func (r *Repo) PutGame(ctx context.Context, game models.Game) error {
 	return err
 }
 
-func (r *Repo) GetAllGames(ctx context.Context, poolID string) ([]models.Game, error) {
+func (r *Repo) GetAllGamesGlobal(ctx context.Context) ([]models.Game, error) {
 	out, err := r.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              &r.tableName,
 		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :prefix)"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk":     &types.AttributeValueMemberS{Value: "POOL#" + poolID},
+			":pk":     &types.AttributeValueMemberS{Value: "GAMES"},
 			":prefix": &types.AttributeValueMemberS{Value: "GAME#"},
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
+	return gamesFromItems(out.Items), nil
+}
+
+// Deprecated: PutGame delegates to PutGameGlobal. Remove after migration.
+func (r *Repo) PutGame(ctx context.Context, game models.Game) error {
+	return r.PutGameGlobal(ctx, game)
+}
+
+// Deprecated: GetAllGames delegates to GetAllGamesGlobal. Remove after migration.
+func (r *Repo) GetAllGames(ctx context.Context, _ string) ([]models.Game, error) {
+	return r.GetAllGamesGlobal(ctx)
+}
+
+func gamesFromItems(items []map[string]types.AttributeValue) []models.Game {
 	var games []models.Game
-	for _, item := range out.Items {
-		g := models.Game{PoolID: poolID}
+	for _, item := range items {
+		var g models.Game
 		if v, ok := item["SK"].(*types.AttributeValueMemberS); ok {
 			g.EspnID = strings.TrimPrefix(v.Value, "GAME#")
 		}
@@ -327,7 +348,45 @@ func (r *Repo) GetAllGames(ctx context.Context, poolID string) ([]models.Game, e
 		}
 		games = append(games, g)
 	}
-	return games, nil
+	return games
+}
+
+// GetAllRoundAxes fetches all axes for a pool in a single Query (replaces 12 serial GetItem calls).
+func (r *Repo) GetAllRoundAxes(ctx context.Context, poolID string) ([]models.Axis, error) {
+	out, err := r.client.Query(ctx, &dynamodb.QueryInput{
+		TableName:              &r.tableName,
+		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :prefix)"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":pk":     &types.AttributeValueMemberS{Value: "POOL#" + poolID},
+			":prefix": &types.AttributeValueMemberS{Value: "ROUND#"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var axes []models.Axis
+	for _, item := range out.Items {
+		sk, ok := item["SK"].(*types.AttributeValueMemberS)
+		if !ok {
+			continue
+		}
+		// SK format: ROUND#<num>#AXIS#<type> — skip non-AXIS items (e.g. CONFIG)
+		if !strings.Contains(sk.Value, "#AXIS#") {
+			continue
+		}
+		parts := strings.Split(sk.Value, "#") // ["ROUND", num, "AXIS", type]
+		if len(parts) != 4 {
+			continue
+		}
+		roundNum, _ := strconv.Atoi(parts[1])
+		axisType := parts[3]
+		axis, err := axisFromItem(item, poolID, roundNum, axisType)
+		if err != nil {
+			return nil, err
+		}
+		axes = append(axes, axis)
+	}
+	return axes, nil
 }
 
 // Payout operations
