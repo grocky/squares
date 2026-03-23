@@ -1,15 +1,11 @@
 # =============================================================================
-# DNS — squares.rockygray.com → ALB
+# DNS — squares.rockygray.com → Elastic IP
 # =============================================================================
 
 resource "aws_route53_record" "squares" {
-  zone_id = data.terraform_remote_state.rockygray_com.outputs.root_domain.root_zone_id
+  zone_id = data.aws_route53_zone.root.zone_id
   name    = var.domain_name
   type    = "A"
-
-  alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
-    evaluate_target_health = true
-  }
+  ttl     = 300
+  records = [aws_eip.server.public_ip]
 }

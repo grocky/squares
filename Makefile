@@ -75,13 +75,7 @@ GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 VERSION_LDFLAG := -X github.com/grocky/squares/internal/version.commit=$(GIT_COMMIT)
 
 .PHONY: build
-build: ## Build server Lambda binary (linux/arm64) → dist/
-	@mkdir -p $(DIST_DIR)
-	@echo "$(GREEN)Building server Lambda binary...$(RESET)"
-	GOOS=linux GOARCH=arm64 go build -ldflags "$(VERSION_LDFLAG)" -o $(DIST_DIR)/bootstrap ./cmd/server
-	rm -f $(DIST_DIR)/bootstrap.zip
-	cd $(DIST_DIR) && zip bootstrap.zip bootstrap && rm bootstrap
-	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap.zip$(RESET)"
+build: build-server ## Alias for build-server (EC2 binary)
 
 .PHONY: build-cron
 build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
@@ -93,35 +87,48 @@ build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
 	@echo "$(GREEN)Built $(DIST_DIR)/bootstrap-cron.zip$(RESET)"
 
 .PHONY: build-all
-build-all: build build-cron ## Build all Lambda binaries → dist/
+build-all: build-server build-cron ## Build server binary + cron Lambda binary
 
 # =============================================================================
-# Docker / ECS
+# EC2 Deploy
 # =============================================================================
 
 AWS_REGION ?= us-east-1
-AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null)
-ECR_REGISTRY := $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-ECR_REPO ?= $(ECR_REGISTRY)/squares-server
+EC2_HOST ?= $(shell cd infrastructure && terraform output -raw ec2_public_ip 2>/dev/null)
+EC2_USER ?= ec2-user
+EC2_KEY  ?= ~/.ssh/squares
+EC2_BINARY := $(DIST_DIR)/squares-server
 
-.PHONY: docker-build
-docker-build: ## Build Docker image for the server
-	@echo "$(GREEN)Building Docker image...$(RESET)"
-	docker build -t squares-server .
+.PHONY: build-server
+build-server: ## Build server binary for Linux arm64 (EC2 t4g.micro)
+	@mkdir -p $(DIST_DIR)
+	@echo "$(GREEN)Building server binary (linux/arm64)...$(RESET)"
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(VERSION_LDFLAG)" -o $(EC2_BINARY) ./cmd/server
+	@echo "$(GREEN)Built $(EC2_BINARY)$(RESET)"
 
-.PHONY: docker-push
-docker-push: docker-build ## Build and push Docker image to ECR
-	@echo "$(GREEN)Pushing to ECR: $(ECR_REPO)...$(RESET)"
-	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REGISTRY)
-	docker tag squares-server:latest $(ECR_REPO):latest
-	docker push $(ECR_REPO):latest
-	@echo "$(GREEN)Pushed $(ECR_REPO):latest$(RESET)"
+.PHONY: ec2-deploy
+ec2-deploy: build-server ## Build + deploy server binary to EC2, then restart the service
+	@if [ -z "$(EC2_HOST)" ]; then echo "EC2_HOST not set — run: make ec2-deploy EC2_HOST=<ip>"; exit 1; fi
+	@echo "$(GREEN)Deploying to $(EC2_USER)@$(EC2_HOST)...$(RESET)"
+	scp -i $(EC2_KEY) -o StrictHostKeyChecking=no $(EC2_BINARY) $(EC2_USER)@$(EC2_HOST):/tmp/squares-server
+	ssh -i $(EC2_KEY) -o StrictHostKeyChecking=no $(EC2_USER)@$(EC2_HOST) \
+		"sudo mv /tmp/squares-server /opt/squares/squares-server && \
+		 sudo chown squares:squares /opt/squares/squares-server && \
+		 sudo chmod +x /opt/squares/squares-server && \
+		 sudo systemctl restart squares && \
+		 sudo systemctl status squares --no-pager"
+	@echo "$(GREEN)Deploy complete$(RESET)"
 
-.PHONY: ecs-deploy
-ecs-deploy: docker-push ## Push image and force ECS service redeploy
-	@echo "$(GREEN)Forcing ECS service redeploy...$(RESET)"
-	aws ecs update-service --cluster squares --service squares-server --force-new-deployment --region $(AWS_REGION) > /dev/null
-	@echo "$(GREEN)ECS redeploy triggered$(RESET)"
+.PHONY: ec2-ssh
+ec2-ssh: ## SSH into the EC2 instance
+	@if [ -z "$(EC2_HOST)" ]; then echo "EC2_HOST not set"; exit 1; fi
+	ssh -i $(EC2_KEY) $(EC2_USER)@$(EC2_HOST)
+
+.PHONY: ec2-logs
+ec2-logs: ## Tail the squares service logs on EC2
+	@if [ -z "$(EC2_HOST)" ]; then echo "EC2_HOST not set"; exit 1; fi
+	ssh -i $(EC2_KEY) -o StrictHostKeyChecking=no $(EC2_USER)@$(EC2_HOST) \
+		"sudo journalctl -u squares -f --no-pager"
 
 .PHONY: invoke-cron
 invoke-cron: ## Manually invoke the score sync cron Lambda
@@ -136,11 +143,11 @@ tf-init: ## Initialize Terraform
 	terraform -chdir=infrastructure init
 
 .PHONY: tf-plan
-tf-plan: build-all ## Plan infrastructure changes
+tf-plan: build-cron ## Plan infrastructure changes
 	terraform -chdir=infrastructure plan
 
 .PHONY: tf-apply
-tf-apply: build-all ## Apply infrastructure changes
+tf-apply: build-cron ## Apply infrastructure changes
 	terraform -chdir=infrastructure apply
 
 .PHONY: tf-destroy
@@ -148,7 +155,7 @@ tf-destroy: ## Destroy infrastructure (careful!)
 	terraform -chdir=infrastructure destroy
 
 .PHONY: deploy
-deploy: build-cron tf-apply ecs-deploy ## Full deploy: cron Lambda + Docker image + ECS redeploy
+deploy: build-cron tf-apply ec2-deploy ## Full deploy: cron Lambda + server binary to EC2
 
 # =============================================================================
 # Quality

@@ -1,6 +1,6 @@
 # =============================================================================
-# VPC — minimal public-subnet setup for Fargate
-# (DynamoDB accessed via public endpoint; no NAT gateway needed)
+# VPC — minimal single-AZ public subnet for EC2
+# (No ALB → no multi-AZ requirement; no NAT gateway; no extra cost)
 # =============================================================================
 
 resource "aws_vpc" "main" {
@@ -23,27 +23,14 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# Two public subnets in different AZs for ALB (requires >= 2)
-resource "aws_subnet" "public_a" {
+resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "squares-public-a"
-    Application = "squares"
-  }
-}
-
-resource "aws_subnet" "public_b" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "us-east-1b"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name        = "squares-public-b"
+    Name        = "squares-public"
     Application = "squares"
   }
 }
@@ -62,23 +49,20 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table_association" "public_a" {
-  subnet_id      = aws_subnet.public_a.id
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table_association" "public_b" {
-  subnet_id      = aws_subnet.public_b.id
-  route_table_id = aws_route_table.public.id
-}
-
-# Security group for ALB — allow HTTP/HTTPS from anywhere
-resource "aws_security_group" "alb" {
-  name        = "squares-alb"
-  description = "ALB inbound traffic"
+# Security group for EC2 — HTTP/HTTPS from anywhere + SSH from anywhere
+# (restrict SSH source to your IP via var.ssh_cidr in production)
+resource "aws_security_group" "ec2" {
+  name        = "squares-ec2"
+  description = "EC2 instance inbound traffic"
   vpc_id      = aws_vpc.main.id
 
   ingress {
+    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -86,36 +70,20 @@ resource "aws_security_group" "alb" {
   }
 
   ingress {
+    description = "HTTPS"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "squares-alb"
-    Application = "squares"
-  }
-}
-
-# Security group for Fargate tasks — only allow traffic from ALB
-resource "aws_security_group" "fargate" {
-  name        = "squares-fargate"
-  description = "Fargate task inbound from ALB"
-  vpc_id      = aws_vpc.main.id
-
   ingress {
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    description      = "SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = [var.ssh_ipv4_cidr]
+    ipv6_cidr_blocks = [var.ssh_ipv6_cidr]
   }
 
   egress {
@@ -126,7 +94,7 @@ resource "aws_security_group" "fargate" {
   }
 
   tags = {
-    Name        = "squares-fargate"
+    Name        = "squares-ec2"
     Application = "squares"
   }
 }

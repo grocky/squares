@@ -43,6 +43,23 @@ variable "sync_interval_minutes" {
   default     = 5
 }
 
+variable "ssh_public_key" {
+  description = "SSH public key for EC2 access (paste your ~/.ssh/squares.pub contents)"
+  type        = string
+}
+
+variable "ssh_ipv4_cidr" {
+  description = "IPv4 CIDR allowed to SSH into the EC2 instance"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+variable "ssh_ipv6_cidr" {
+  description = "IPv6 CIDR allowed to SSH into the EC2 instance"
+  type        = string
+  default     = "::/0"
+}
+
 # =============================================================================
 # Data Sources
 # =============================================================================
@@ -50,23 +67,6 @@ variable "sync_interval_minutes" {
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Root domain state (zone ID, cert)
-data "terraform_remote_state" "rockygray_com" {
-  backend = "s3"
-  config = {
-    bucket = "grocky-tfstate"
-    region = "us-east-1"
-    key    = "rockygray.com/terraform.tfstate"
-  }
-}
-
-# ACM wildcard cert (must be in us-east-1 for CloudFront — already is)
-data "aws_acm_certificate" "wildcard" {
-  domain   = "*.rockygray.com"
-  statuses = ["ISSUED"]
-}
-
-# Route53 zone
 data "aws_route53_zone" "root" {
   name = "rockygray.com."
 }

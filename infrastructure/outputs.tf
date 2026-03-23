@@ -2,22 +2,22 @@ output "url" {
   value = "https://${var.domain_name}"
 }
 
-output "alb_dns" {
-  value = aws_lb.main.dns_name
+output "ec2_public_ip" {
+  value = aws_eip.server.public_ip
 }
 
-output "ecr_repository_url" {
-  value = aws_ecr_repository.server.repository_url
+output "ec2_instance_id" {
+  value = aws_instance.server.id
 }
 
 output "dynamodb_table" {
   value = aws_dynamodb_table.squares.name
 }
 
-output "ecs_cluster" {
-  value = aws_ecs_cluster.main.name
-}
-
 output "cron_lambda" {
   value = aws_lambda_function.cron.function_name
+}
+
+output "ssh_connect" {
+  value = "ssh -i ~/.ssh/squares ec2-user@${aws_eip.server.public_ip}"
 }
