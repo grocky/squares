@@ -36,6 +36,8 @@ func WatchSyncState(ctx context.Context, repo *dynamo.Repo, hub *Hub, poolID str
 				continue
 			}
 			lastSeen = t
+			hub.SetLastSyncTime(t)
+
 			log.Printf("sync watcher: new sync detected at %s — broadcasting", t.Format(time.RFC3339))
 			hub.Broadcast("sync")
 		}

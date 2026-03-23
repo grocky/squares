@@ -9,9 +9,10 @@ import (
 )
 
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[chan string]struct{}
-	done    chan struct{} // closed by Shutdown; handler goroutines select on this
+	mu           sync.RWMutex
+	clients      map[chan string]struct{}
+	lastSyncTime time.Time
+	done         chan struct{} // closed by Shutdown; handler goroutines select on this
 }
 
 func NewHub() *Hub {
@@ -40,6 +41,18 @@ func (h *Hub) Broadcast(event string) {
 			// skip slow clients
 		}
 	}
+}
+
+func (h *Hub) SetLastSyncTime(t time.Time) {
+	h.mu.Lock()
+	h.lastSyncTime = t
+	h.mu.Unlock()
+}
+
+func (h *Hub) GetLastSyncTime() time.Time {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.lastSyncTime
 }
 
 // Shutdown notifies all connected SSE clients to reconnect quickly, then
@@ -97,8 +110,15 @@ func (h *Hub) Handler() http.HandlerFunc {
 
 		log.Printf("SSE client connected (total=%d ip=%s)", h.ClientCount(), r.RemoteAddr)
 
+		heartBeat := time.NewTicker(15 * time.Second)
+		defer heartBeat.Stop()
+
 		for {
 			select {
+			case <-heartBeat.C:
+				lastSync := h.GetLastSyncTime()
+				fmt.Fprintf(w, "event: heartbeat\ndata: {\"lastSyncTime\":\"%s\"}\n\n", lastSync.Format(time.RFC3339))
+				flusher.Flush()
 			case <-r.Context().Done():
 				log.Printf("SSE client disconnected (total=%d)", h.ClientCount())
 				return

@@ -121,5 +121,9 @@ evtSource.addEventListener('sync', function(e) {
     htmx.trigger(document.getElementById('leaderboard'), 'refresh');
     htmx.trigger(document.getElementById('games'), 'refresh');
 });
+
+evtSource.addEventListener('heartbeat', function(e) {
+    console.debug('heartbeat', {data: e.data});
+});
 </script>
 {{end}}
