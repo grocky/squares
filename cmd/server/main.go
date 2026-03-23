@@ -66,6 +66,13 @@ func main() {
 	}
 	mux.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
+	// Serve vendor files
+	vendorFS, err := fs.Sub(web.FS, "vendor")
+	if err != nil {
+		log.Fatalf("failed to create vendor FS: %v", err)
+	}
+	mux.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
+
 	if isLambda() {
 		adapter := chiadapter.NewV2(mux)
 		lambda.Start(adapter.ProxyWithContextV2)
