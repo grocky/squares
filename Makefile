@@ -5,6 +5,8 @@ PROJECT_NAME := squares
 DIST_DIR     := dist
 .DEFAULT_GOAL := help
 
+BUILD_FILES := $(shell find . -type f -name '*.go' -o -name '*.html' -o -name '*.css')
+
 # =============================================================================
 # Local Dev Environment
 # =============================================================================
@@ -74,8 +76,13 @@ sync: ## Sync live ESPN scores against local server
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 VERSION_LDFLAG := -X github.com/grocky/squares/internal/version.commit=$(GIT_COMMIT)
 
+$(DIST_DIR)/squares-local: $(DIST_DIR) $(BUILD_FILES)
+	@echo "$(GREEN)Building local server binary...$(RESET)"
+	go build -ldflags "$(VERSION_LDFLAG)" -o $(DIST_DIR)/squares-local ./cmd/server
+	@echo "$(GREEN)Built $(DIST_DIR)/squares-local$(RESET)"
+
 .PHONY: build
-build: build-server ## Alias for build-server (EC2 binary)
+build: $(DIST_DIR)/squares-local ## Build local server binary
 
 .PHONY: build-cron
 build-cron: ## Build cron Lambda binary (linux/arm64) → dist/
@@ -99,15 +106,19 @@ EC2_USER ?= ec2-user
 EC2_KEY  ?= ~/.ssh/squares
 EC2_BINARY := $(DIST_DIR)/squares-server
 
-.PHONY: build-server
-build-server: ## Build server binary for Linux arm64 (EC2 t4g.micro)
+$(DIST_DIR):
 	@mkdir -p $(DIST_DIR)
+
+$(EC2_BINARY): $(DIST_DIR) $(BUILD_FILES)
 	@echo "$(GREEN)Building server binary (linux/arm64)...$(RESET)"
 	GOOS=linux GOARCH=arm64 go build -ldflags "$(VERSION_LDFLAG)" -o $(EC2_BINARY) ./cmd/server
 	@echo "$(GREEN)Built $(EC2_BINARY)$(RESET)"
 
+.PHONY: build-prod
+build-prod: $(EC2_BINARY) ## Build server binary for production (linux/arm64)
+
 .PHONY: ec2-deploy
-ec2-deploy: build-server ## Build + deploy server binary to EC2, then restart the service
+ec2-deploy: build-prod ## Build + deploy server binary to EC2, then restart the service
 	@if [ -z "$(EC2_HOST)" ]; then echo "EC2_HOST not set — run: make ec2-deploy EC2_HOST=<ip>"; exit 1; fi
 	@echo "$(GREEN)Deploying to $(EC2_USER)@$(EC2_HOST)...$(RESET)"
 	scp -i $(EC2_KEY) -o StrictHostKeyChecking=no $(EC2_BINARY) $(EC2_USER)@$(EC2_HOST):/tmp/squares-server
