@@ -16,25 +16,59 @@ APP_USER="squares"
 APP_DIR="/opt/squares"
 
 # ---------------------------------------------------------------------------
-# System deps
-# ---------------------------------------------------------------------------
-dnf update -y
-dnf install -y curl unzip
-
-# ---------------------------------------------------------------------------
-# Install Caddy from official repo
-# ---------------------------------------------------------------------------
-dnf install -y 'dnf-command(copr)' || true
-# Use the official Caddy COPR for Amazon Linux 2023
-curl -fsSL https://rpm.caddy.io/caddy.repo -o /etc/yum.repos.d/caddy.repo
-dnf install -y caddy
-
-# ---------------------------------------------------------------------------
-# Create app user + directory
+# Create app user + directory early (before anything else)
+# so `make ec2-deploy` can succeed even if the rest of user data is still running
 # ---------------------------------------------------------------------------
 useradd --system --no-create-home --shell /sbin/nologin "$APP_USER" || true
 mkdir -p "$APP_DIR"
 chown "$APP_USER:$APP_USER" "$APP_DIR"
+chown "$APP_USER:$APP_USER" /etc/squares
+
+# ---------------------------------------------------------------------------
+# System deps
+# ---------------------------------------------------------------------------
+dnf update -y
+
+# ---------------------------------------------------------------------------
+# Install Caddy — download binary directly from GitHub (avoids curl-minimal
+# conflict introduced by the Caddy RPM repo on AL2023)
+# ---------------------------------------------------------------------------
+CADDY_VERSION="${caddy_version}"
+curl -fsSL "https://github.com/caddyserver/caddy/releases/download/v$${CADDY_VERSION}/caddy_$${CADDY_VERSION}_linux_arm64.tar.gz" \
+  | tar -xz -C /usr/local/bin caddy
+chmod +x /usr/local/bin/caddy
+
+# Create caddy system user and required dirs (mirrors what the RPM would do)
+useradd --system --no-create-home --shell /sbin/nologin caddy || true
+mkdir -p /etc/caddy /var/lib/caddy /var/log/caddy
+chown caddy:caddy /var/lib/caddy /var/log/caddy
+
+# systemd service for Caddy
+cat > /etc/systemd/system/caddy.service <<'CADDYSVC'
+[Unit]
+Description=Caddy
+Documentation=https://caddyserver.com/docs/
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=notify
+User=caddy
+Group=caddy
+Environment=HOME=/var/lib/caddy
+Environment=XDG_DATA_HOME=/var/lib/caddy
+Environment=XDG_CONFIG_HOME=/var/lib/caddy/.config
+ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --force
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+PrivateTmp=true
+ProtectSystem=full
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+CADDYSVC
 
 # ---------------------------------------------------------------------------
 # Caddy config — reverse proxy with auto-TLS
@@ -80,6 +114,7 @@ WantedBy=multi-user.target
 EOF
 
 mkdir -p /etc/squares
+chown squares:squares /etc/squares
 chmod 700 /etc/squares
 
 # ---------------------------------------------------------------------------

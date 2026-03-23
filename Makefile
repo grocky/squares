@@ -144,11 +144,17 @@ tf-init: ## Initialize Terraform
 
 .PHONY: tf-plan
 tf-plan: build-cron ## Plan infrastructure changes
-	terraform -chdir=infrastructure plan
+	terraform -chdir=infrastructure plan \
+		-var="ssh_public_key=$$(cat ~/.ssh/squares.pub)" \
+		-var="ssh_ipv4_cidr=$$(curl -s -4 ifconfig.me)/32" \
+		-var="ssh_ipv6_cidr=$$(curl -s -6 ifconfig.me)/128"
 
 .PHONY: tf-apply
 tf-apply: build-cron ## Apply infrastructure changes
-	terraform -chdir=infrastructure apply
+	terraform -chdir=infrastructure apply \
+		-var="ssh_public_key=$$(cat ~/.ssh/squares.pub)" \
+		-var="ssh_ipv4_cidr=$$(curl -s -4 ifconfig.me)/32" \
+		-var="ssh_ipv6_cidr=$$(curl -s -6 ifconfig.me)/128"
 
 .PHONY: tf-destroy
 tf-destroy: ## Destroy infrastructure (careful!)

@@ -55,11 +55,12 @@ resource "aws_instance" "server" {
   }
 
   user_data = templatefile("${path.module}/userdata.sh", {
-    domain         = var.domain_name
+    domain           = var.domain_name
     admin_token_path = "/squares/admin-token"
-    pool_id        = var.pool_id
-    dynamodb_table = aws_dynamodb_table.squares.name
-    aws_region     = data.aws_region.current.id
+    pool_id          = var.pool_id
+    dynamodb_table   = aws_dynamodb_table.squares.name
+    aws_region       = data.aws_region.current.id
+    caddy_version    = "2.9.1"
   })
 
   # Replace instance (not in-place update) when user_data changes,
