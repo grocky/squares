@@ -115,12 +115,8 @@ func TestFetchGames_ParsesEventsCorrectly(t *testing.T) {
 				Competitions: []competition{
 					{
 						Competitors: []competitor{
-							{HomeAway: "home", Score: "75", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "Duke"}},
-							{HomeAway: "away", Score: "68", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "UNC"}},
+							newCompetitor("home", "75", "Duke", 1),
+							newCompetitor("away", "68", "UNC", 2),
 						},
 						Status: struct {
 							Type struct {
@@ -220,12 +216,8 @@ func TestFetchGames_DeduplicatesByID(t *testing.T) {
 				Competitions: []competition{
 					{
 						Competitors: []competitor{
-							{HomeAway: "home", Score: "0", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "Duke"}},
-							{HomeAway: "away", Score: "0", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "UNC"}},
+							newCompetitor("home", "0", "Duke", 1),
+							newCompetitor("away", "0", "UNC", 2),
 						},
 						Status: struct {
 							Type struct {
@@ -251,12 +243,8 @@ func TestFetchGames_DeduplicatesByID(t *testing.T) {
 				Competitions: []competition{
 					{
 						Competitors: []competitor{
-							{HomeAway: "home", Score: "75", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "Duke"}},
-							{HomeAway: "away", Score: "68", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "UNC"}},
+							newCompetitor("home", "75", "Duke", 1),
+							newCompetitor("away", "68", "UNC", 2),
 						},
 						Status: struct {
 							Type struct {
@@ -316,12 +304,8 @@ func TestFetchGames_ScoreParsing(t *testing.T) {
 				Competitions: []competition{
 					{
 						Competitors: []competitor{
-							{HomeAway: "home", Score: "80", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "A"}},
-							{HomeAway: "away", Score: "65", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "B"}},
+							newCompetitor("home", "80", "A", 1),
+							newCompetitor("away", "65", "B", 2),
 						},
 						Status: struct {
 							Type struct {
@@ -362,6 +346,9 @@ func TestFetchGames_ScoreParsing(t *testing.T) {
 	if g.HomeScore != 80 || g.AwayScore != 65 {
 		t.Errorf("scores = %d/%d, want 80/65", g.HomeScore, g.AwayScore)
 	}
+	if g.HomeRank != 1 || g.AwayRank != 2 {
+		t.Errorf("ranks = %d/%d, want 1/2", g.HomeRank, g.AwayRank)
+	}
 	if g.WinnerScore != 80 || g.LoserScore != 65 {
 		t.Errorf("winner/loser = %d/%d, want 80/65", g.WinnerScore, g.LoserScore)
 	}
@@ -382,12 +369,8 @@ func TestFetchGames_AwayTeamWins(t *testing.T) {
 				Competitions: []competition{
 					{
 						Competitors: []competitor{
-							{HomeAway: "home", Score: "55", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "A"}},
-							{HomeAway: "away", Score: "70", Team: struct {
-								DisplayName string `json:"displayName"`
-							}{DisplayName: "B"}},
+							newCompetitor("home", "55", "A", 1),
+							newCompetitor("away", "70", "B", 2),
 						},
 						Status: struct {
 							Type struct {
@@ -421,5 +404,18 @@ func TestFetchGames_AwayTeamWins(t *testing.T) {
 	g := games[0]
 	if g.WinnerScore != 70 || g.LoserScore != 55 {
 		t.Errorf("winner/loser = %d/%d, want 70/55", g.WinnerScore, g.LoserScore)
+	}
+}
+
+func newCompetitor(homeAway, score, teamName string, rank int) competitor {
+	return competitor{
+		HomeAway: homeAway,
+		Score:    score,
+		Team: struct {
+			DisplayName string `json:"displayName"`
+		}{DisplayName: teamName},
+		CuratedRank: struct {
+			Current int `json:"current"`
+		}{Current: rank},
 	}
 }

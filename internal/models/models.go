@@ -50,8 +50,10 @@ type Game struct {
 	RoundNum    int
 	HomeScore   int
 	AwayScore   int
-	WinnerScore int // derived: max(HomeScore, AwayScore) — used by scorer
-	LoserScore  int // derived: min(HomeScore, AwayScore) — used by scorer
+	HomeRank    int
+	AwayRank    int
+	WinnerScore int    // derived: max(HomeScore, AwayScore) — used by scorer
+	LoserScore  int    // derived: min(HomeScore, AwayScore) — used by scorer
 	Status      string // "scheduled", "in_progress", "final"
 	StartTime   time.Time
 	SyncedAt    time.Time

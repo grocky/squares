@@ -2,9 +2,15 @@
 {{range .Data.Games}}
 <div class="flex items-stretch bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden min-w-0">
     {{/* Teams column */}}
-    <div class="flex-1 flex flex-col justify-center py-3 px-4 min-w-[140px]">
-        <span class="text-sm font-medium text-gray-700">{{.AwayTeam}}</span>
-        <span class="text-sm font-medium text-gray-900">{{.HomeTeam}}</span>
+    <div class="flex-1 py-3 px-2">
+        <div class="flex items-center text-sm font-medium text-gray-700">
+            <span class="flex items-center justify-center w-6 h-6 rounded-full m-r">{{.AwayRank}}</span>
+            <span>{{.AwayTeam}}</span>
+        </div>
+        <div class="flex items-center text-sm font-medium text-gray-900">
+            <span class="flex items-center justify-center w-6 h-6 rounded-full m-r">{{.HomeRank}}</span>
+            <span>{{.HomeTeam}}</span>
+        </div>
     </div>
 
     {{if eq .Status "scheduled"}}

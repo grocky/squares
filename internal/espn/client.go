@@ -61,6 +61,9 @@ type competitor struct {
 	Team     struct {
 		DisplayName string `json:"displayName"`
 	} `json:"team"`
+	CuratedRank struct {
+		Current int `json:"current"`
+	} `json:"curatedRank"`
 }
 
 // normalizeStatus uses the ESPN state field which is more stable than name.
@@ -210,14 +213,17 @@ func (c *Client) eventsToGames(seen map[string]event) []models.Game {
 
 		var homeTeam, awayTeam string
 		var homeScore, awayScore int
+		var homeRank, awayRank int
 		for _, c := range comp.Competitors {
 			score, _ := strconv.Atoi(c.Score)
 			if c.HomeAway == "home" {
 				homeTeam = c.Team.DisplayName
 				homeScore = score
+				homeRank = c.CuratedRank.Current
 			} else {
 				awayTeam = c.Team.DisplayName
 				awayScore = score
+				awayRank = c.CuratedRank.Current
 			}
 		}
 
@@ -225,6 +231,8 @@ func (c *Client) eventsToGames(seen map[string]event) []models.Game {
 		g.AwayTeam = awayTeam
 		g.HomeScore = homeScore
 		g.AwayScore = awayScore
+		g.HomeRank = homeRank
+		g.AwayRank = awayRank
 
 		// Derive winner/loser scores for the scorer logic
 		if homeScore >= awayScore {

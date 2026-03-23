@@ -212,7 +212,6 @@ func axisFromItem(item map[string]types.AttributeValue, poolID string, roundNum 
 }
 
 // Square operations
-
 func (r *Repo) PutSquare(ctx context.Context, sq models.Square) error {
 	sk := fmt.Sprintf("SQUARE#%d%d", sq.Row, sq.Col)
 	_, err := r.client.PutItem(ctx, &dynamodb.PutItemInput{
@@ -271,6 +270,8 @@ func (r *Repo) PutGameGlobal(ctx context.Context, game models.Game) error {
 			"roundNum":    &types.AttributeValueMemberN{Value: strconv.Itoa(game.RoundNum)},
 			"homeScore":   &types.AttributeValueMemberN{Value: strconv.Itoa(game.HomeScore)},
 			"awayScore":   &types.AttributeValueMemberN{Value: strconv.Itoa(game.AwayScore)},
+			"homeRank":    &types.AttributeValueMemberN{Value: strconv.Itoa(game.HomeRank)},
+			"awayRank":    &types.AttributeValueMemberN{Value: strconv.Itoa(game.AwayRank)},
 			"winnerScore": &types.AttributeValueMemberN{Value: strconv.Itoa(game.WinnerScore)},
 			"loserScore":  &types.AttributeValueMemberN{Value: strconv.Itoa(game.LoserScore)},
 			"status":      &types.AttributeValueMemberS{Value: game.Status},
@@ -330,6 +331,12 @@ func gamesFromItems(items []map[string]types.AttributeValue) []models.Game {
 		}
 		if v, ok := item["awayScore"].(*types.AttributeValueMemberN); ok {
 			g.AwayScore, _ = strconv.Atoi(v.Value)
+		}
+		if v, ok := item["homeRank"].(*types.AttributeValueMemberN); ok {
+			g.HomeRank, _ = strconv.Atoi(v.Value)
+		}
+		if v, ok := item["awayRank"].(*types.AttributeValueMemberN); ok {
+			g.AwayRank, _ = strconv.Atoi(v.Value)
 		}
 		if v, ok := item["winnerScore"].(*types.AttributeValueMemberN); ok {
 			g.WinnerScore, _ = strconv.Atoi(v.Value)
