@@ -200,4 +200,50 @@ Both read/write the same DynamoDB table. The Lambda writes a `sync_state` record
 
 Infrastructure is defined in the `infrastructure/` directory (Terraform/CDK).
 
+---
+
+## Off-Season Teardown & Restore
+
+When the tournament ends, tear the stack down to stop paying for EC2, the Elastic IP, and the every-5-minute Lambda invocations. Next year, `terraform apply` rebuilds everything.
+
+### Optional — snapshot this year's data
+
+Skip if you don't care about preserving the final board. Otherwise dump the table into the seed file and commit it:
+
+```bash
+AWS_PROFILE=grocky_personal AWS_REGION=us-east-1 DYNAMODB_TABLE=squares go run ./cmd/dump
+git add cmd/seed && git commit -m "snapshot final tournament state"
+```
+
+### Tear down
+
+```bash
+AWS_PROFILE=grocky_personal terraform -chdir=infrastructure destroy \
+  -var="ssh_public_key=$(cat ~/.ssh/squares.pub)"
+```
+
+This destroys: EC2 instance + EBS, Elastic IP, Lambda + EventBridge schedule, DynamoDB table, VPC/subnet/SG/IGW, Route53 A record, IAM roles, CloudWatch log group.
+
+### What survives (and why that's fine)
+
+- **`~/.ssh/squares` keypair** — local to your laptop, used to recreate the EC2 keypair next year
+- **SSM parameter `/squares/admin-token`** — not managed by Terraform, ~$0/mo, reusable next year
+- **S3 tfstate bucket `grocky-tfstate`** — pennies, holds the state file the destroy itself writes to
+- **Route53 hosted zone `rockygray.com`** — managed elsewhere, only the A record is removed
+
+### Restore next year
+
+```bash
+make tf-apply        # rebuild infra (EC2, Lambda, DynamoDB, etc.)
+make seed-prod       # populate DynamoDB from cmd/seed/main.go
+make ec2-deploy      # build + ship the server binary to the new EC2
+```
+
+If the SSM admin token was deleted, recreate it before `tf-apply`:
+```bash
+AWS_PROFILE=grocky_personal aws ssm put-parameter \
+  --name /squares/admin-token --type SecureString \
+  --value "$(openssl rand -hex 24)" --region us-east-1
+```
+
 > **License:** Non-commercial use only. See [LICENSE](LICENSE).
